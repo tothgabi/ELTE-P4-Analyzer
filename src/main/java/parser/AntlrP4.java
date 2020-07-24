@@ -28,11 +28,14 @@ public class AntlrP4 {
         P4Lexer lexer  = new P4Lexer(stream);   
         TokenStream tokenStream = new CommonTokenStream(lexer);
         P4Parser parser = new P4Parser(tokenStream);
+        
         ParseTree tree = parser.start();
  //show AST in console
 //        System.out.println(tree.toStringTree(parser));
 
-        Graph graph =TinkerGraphParseTree.fromParseTree(tree);
+
+        Graph graph =TinkerGraphParseTree.fromParseTree(tree, lexer.getVocabulary(), parser.getRuleNames());
+        ControlFlowAnalysis.analyse(graph);
         GraphUtils.printGraph(graph, "proba", true, GraphUtils.Extension.DOT, GraphUtils.Extension.SVG);
 
 //        //show AST in GUI
