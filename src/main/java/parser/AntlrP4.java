@@ -15,6 +15,7 @@ import org.antlr.v4.runtime.TokenStream;
 import org.antlr.v4.runtime.tree.ParseTree;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 
+import parser.GraphUtils.Label;
 import parser.p4.*;
 
 public class AntlrP4 {
@@ -36,7 +37,7 @@ public class AntlrP4 {
 
         Graph graph =TinkerGraphParseTree.fromParseTree(tree, lexer.getVocabulary(), parser.getRuleNames());
         ControlFlowAnalysis.analyse(graph);
-        GraphUtils.printGraph(graph, "proba", true, GraphUtils.Extension.DOT, GraphUtils.Extension.SVG);
+        GraphUtils.printGraph(GraphUtils.subgraph(graph, Label.CFG), "proba", true, GraphUtils.Extension.SVG);
 
 //        //show AST in GUI
 //        TreeViewer viewer = new TreeViewer(Arrays.asList(
