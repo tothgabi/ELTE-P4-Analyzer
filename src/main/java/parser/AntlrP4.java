@@ -37,7 +37,8 @@ public class AntlrP4 {
 
         Graph graph =TinkerGraphParseTree.fromParseTree(tree, lexer.getVocabulary(), parser.getRuleNames());
         ControlFlowAnalysis.analyse(graph);
-        GraphUtils.printGraph(GraphUtils.subgraph(graph, Label.CFG), "proba", true, GraphUtils.Extension.SVG);
+//        printSyntaxTree(graph);
+        printCfg(graph);
 
 //        //show AST in GUI
 //        TreeViewer viewer = new TreeViewer(Arrays.asList(
@@ -49,6 +50,13 @@ public class AntlrP4 {
 //        Map<String, List<String>> res = tree.accept(new StateMachineVisitor());
 //        System.out.println(res);
 
+    }
+
+    public static void printSyntaxTree(Graph graph) throws IOException, TransformerException, InterruptedException {
+        GraphUtils.printGraph(GraphUtils.subgraph(graph, Label.SYN), "proba", true, GraphUtils.Extension.SVG);
+    }
+    public static void printCfg(Graph graph) throws IOException, TransformerException, InterruptedException {
+        GraphUtils.printGraph(GraphUtils.subgraph(graph, Label.CFG), "proba", true, GraphUtils.Extension.SVG);
     }
 
 }
