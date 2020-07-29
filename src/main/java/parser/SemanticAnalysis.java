@@ -3,7 +3,6 @@ package parser;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.structure.Graph;
@@ -62,6 +61,7 @@ public class SemanticAnalysis {
         findTransitionSelectCaseName(g);
         findStartState(g);
         findNextState(g);
+        findStatements(g);
 
     }
 
@@ -165,6 +165,22 @@ public class SemanticAnalysis {
                 .iterate();
             }
         }
+    }
+
+    private static void findStatements(GraphTraversalSource g){
+
+        g.E().hasLabel("sem").has("domain", "parser").has("role", "state").inV()
+         .as("synState")
+         .outE("syn").has("rule", "parserStatements").inV()
+         .repeat(__.out())
+         .until(__.has("class", "AssignmentOrMethodCallStatementContext").or()
+                  .has("class", "DirectApplicationContext").or()
+                  .has("class", "ConstantDeclarationContext").or()
+                  .has("class", "VariableDeclarationContext"))
+         .addE("sem").property("domain", "parser").property("role", "statement")
+         .from("synState")
+         .iterate();
+
     }
 
 }

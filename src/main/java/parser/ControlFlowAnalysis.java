@@ -23,7 +23,9 @@ public class ControlFlowAnalysis {
         findStart(g);
         findTransitions(g);
         findFinals(g);
+        findStatements(g);
     }
+
 
     private static void findEntryExit(GraphTraversalSource g, int[] nodeId) {
         g.E().hasLabel("sem").has("domain", "parser").has("role", "parser").inV()
@@ -88,5 +90,19 @@ public class ControlFlowAnalysis {
          .addE("cfg").property("role", "flow")
          .from("finalCf")
          .iterate();
+    }
+
+    private static void findStatements(GraphTraversalSource g) {
+
+        g.E().hasLabel("sem").has("domain", "parser").has("role", "state").inV()
+         .as("synState")
+         .outE("sem").has("domain", "parser").has("role", "statement").inV()
+         .as("synStmt")
+         .select("synState")
+         .inE("cfg").has("role", "assoc").outV()
+         .addE("cfg").property("role", "statement")
+         .to("synStmt")
+         .iterate();
+
     }
 }
