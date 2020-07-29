@@ -36,7 +36,10 @@ public class AntlrP4 {
 
 
         Graph graph =TinkerGraphParseTree.fromParseTree(tree, lexer.getVocabulary(), parser.getRuleNames());
+        SemanticAnalysis.analyse(graph);
         ControlFlowAnalysis.analyse(graph);
+
+//        printSemanticGraph(graph);
 //        printSyntaxTree(graph);
         printCfg(graph);
 
@@ -54,6 +57,9 @@ public class AntlrP4 {
 
     public static void printSyntaxTree(Graph graph) throws IOException, TransformerException, InterruptedException {
         GraphUtils.printGraph(GraphUtils.subgraph(graph, Label.SYN), "proba", true, GraphUtils.Extension.SVG);
+    }
+    public static void printSemanticGraph(Graph graph) throws IOException, TransformerException, InterruptedException {
+        GraphUtils.printGraph(GraphUtils.subgraph(graph, Label.SEM), "proba", true, GraphUtils.Extension.SVG);
     }
     public static void printCfg(Graph graph) throws IOException, TransformerException, InterruptedException {
         GraphUtils.printGraph(GraphUtils.subgraph(graph, Label.CFG), "proba", true, GraphUtils.Extension.SVG);

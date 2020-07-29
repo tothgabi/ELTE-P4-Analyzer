@@ -41,7 +41,7 @@ import java.util.stream.Stream;
 public class GraphUtils {
 
     public static enum Label {
-        SYN, CFG
+        SYN, CFG, SEM
     }
     
     public static enum Extension {
