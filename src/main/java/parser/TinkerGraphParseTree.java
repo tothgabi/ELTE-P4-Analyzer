@@ -25,6 +25,7 @@ import parser.p4.P4BaseVisitor;
 public class TinkerGraphParseTree {
     public static Graph fromParseTree(ParseTree tree, Vocabulary vocab, String[] ruleNames) {
             Graph graph = TinkerGraph.open();
+            GremlinUtils.initializeNodeIds(graph, "syn");
 
             GraphTraversalSource g = graph.traversal();
 //            GraphCreatorVisitor v = new GraphCreatorVisitor();
@@ -57,28 +58,27 @@ public class TinkerGraphParseTree {
 
         public void visitTerminal(TerminalNode node){
             Vertex id = 
-                g   .addV("syn")
-                    .property("nodeId", Integer.toString(ids.size()))
+                g   .addV("syn").sideEffect(GremlinUtils.setNodeId())
+//                    .property("nodeId", Integer.toString(ids.size()))
                     .property("class", node.getClass().getSimpleName())
                     .property("start", node.getSourceInterval().a)
                     .property("end", node.getSourceInterval().b)
                     .property("value", sanitize(node.getText()))
-                    .toList().get(0);
+                    .next();
             ids.put(node, id);
             if(node.getParent() == null) return;
             Object parentId = ids.get(node.getParent());
             if(parentId == null) throw new RuntimeException("parentId == null");
-            int siblingIdx = siblingIdx(node, node.getParent());
             g.V(id).addE("syn").from(ids.get(node.getParent()))
-                .property("ord",Integer.toString(siblingIdx))
-                .property("type",vocab.getSymbolicName(node.getSymbol().getType()))
+                .property("rule",vocab.getSymbolicName(node.getSymbol().getType()))
+                .sideEffect(GremlinUtils.setEdgeOrd())
                 .iterate();
         }
 
         public void enterEveryRule(ParserRuleContext ctx){
             GraphTraversal<Vertex, Vertex> t =
-                g   .addV("syn")
-                    .property("nodeId", Integer.toString(ids.size()))
+                g   .addV("syn").sideEffect(GremlinUtils.setNodeId())
+//                    .property("nodeId", Integer.toString(ids.size()))
                     .property("class", ctx.getClass().getSimpleName())
                     .property("start", ctx.getSourceInterval().a)
                     .property("end", ctx.getSourceInterval().b);
@@ -89,23 +89,12 @@ public class TinkerGraphParseTree {
             if(ctx.parent == null) return;
             Object parentId = ids.get(ctx.parent);
             if(parentId == null) throw new RuntimeException("parentId == null");
-            int siblingIdx = siblingIdx(ctx, ctx.parent);
             g.V(id).addE("syn").from(ids.get(ctx.parent))
-                   .property("ord", Integer.toString(siblingIdx))
-                   .property("type",ruleNames[ctx.getRuleIndex()])
+                   .property("rule",ruleNames[ctx.getRuleIndex()])
+                   .sideEffect(GremlinUtils.setEdgeOrd())
                    .iterate();
         }
 
-        private int siblingIdx(ParseTree ctx, ParseTree parent) {
-            int siblingIdx = -1;
-            for (int i = 0; i < parent.getChildCount(); i++) {
-                if(parent.getChild(i).equals(ctx)){
-                    siblingIdx = i;
-                    break;
-                }
-            }
-            return siblingIdx;
-        }
     }
     
 }

@@ -15,6 +15,7 @@ public class SemanticAnalysis {
         analyseParsers(g);
     }
 
+
     private static void analyseParsers(GraphTraversalSource g) {
         findParsers(g);
         findStates(g);
@@ -25,7 +26,7 @@ public class SemanticAnalysis {
     private static void findParsers(GraphTraversalSource g) {
         g.V().hasLabel("syn").has("class", "ParserDeclarationContext")
          .addE("sem").property("domain", "parser").property("role", "parser")
-         .from(g.V().hasLabel("syn").has("nodeId", "0"))
+         .from(g.V().hasLabel("syn").has("nodeId", 0))
          .iterate();
     }
 
@@ -36,8 +37,9 @@ public class SemanticAnalysis {
             .until(__.outE("syn").has("rule", "parserStates").count().is(0))
             .emit(__.outE("syn").has("rule", "parserState"))
             .outE("syn").has("rule", "parserState").inV()
-            .addE("sem").property("domain", "parser").property("role", "state")
-            .from("parserRoot")
+            .addE("sem").from("parserRoot")
+            .property("domain", "parser").property("role", "state")
+            .sideEffect(GremlinUtils.setEdgeOrd())
             .iterate();
     }
 
@@ -48,8 +50,9 @@ public class SemanticAnalysis {
          .inV()
          .repeat(__.out("syn"))
          .until(__.has("class", "TerminalNodeImpl"))
-         .addE("sem").property("domain", "parser").property("role", "name")
-         .from("stateRoot")
+         .addE("sem").from("stateRoot")
+         .property("domain", "parser").property("role", "name")
+         .sideEffect(GremlinUtils.setEdgeOrd())
          .iterate();
     }
 
@@ -72,8 +75,10 @@ public class SemanticAnalysis {
              .outE("syn").has("rule", "name").inV()
              .repeat(__.out("syn"))
              .until(__.has("class", "TerminalNodeImpl"))
-             .addE("sem").property("domain", "parser").property("role", "name")
+             .addE("sem").property("domain", "parser")
              .from("caseRoot")
+             .property("role", "name")
+             .sideEffect(GremlinUtils.setEdgeOrd())
              .iterate();
     }
 
@@ -82,8 +87,10 @@ public class SemanticAnalysis {
             .as("transitionRoot")
             .outE("syn").has("rule", "selectExpression").inV() 
             .outE("syn").has("rule", "expressionList").inV() 
-            .addE("sem").property("domain", "parser").property("role", "head")
+            .addE("sem")
             .from("transitionRoot")
+            .property("domain", "parser").property("role", "head")
+            .sideEffect(GremlinUtils.setEdgeOrd())
             .iterate();
     }
 
@@ -96,8 +103,9 @@ public class SemanticAnalysis {
             .until(__.outE("syn").has("rule", "selectCaseList").count().is(0))
             .emit(__.outE("syn").has("rule", "selectCase"))
             .outE("syn").has("rule", "selectCase").inV()
-            .addE("sem").property("domain", "parser").property("role", "case")
-            .from("transitionRoot")
+            .addE("sem").from("transitionRoot")
+            .property("domain", "parser").property("role", "case")
+            .sideEffect(GremlinUtils.setEdgeOrd())
             .iterate();
     }
 
@@ -106,8 +114,9 @@ public class SemanticAnalysis {
             .as("transitionRoot")
             .outE("syn").has("rule", "name").inV()
             .repeat(__.out("syn")).until(__.has("class", "TerminalNodeImpl"))
-            .addE("sem").property("domain", "parser").property("role", "name")
-            .from("transitionRoot")
+            .addE("sem").from("transitionRoot")
+            .property("domain", "parser").property("role", "name")
+            .sideEffect(GremlinUtils.setEdgeOrd())
             .iterate();
     }
 
@@ -116,8 +125,9 @@ public class SemanticAnalysis {
          .as("stateRoot")
          .outE("syn").has("rule", "transitionStatement").inV()
          .outE("syn").has("rule", "stateExpression").inV()
-         .addE("sem").property("domain", "parser").property("role", "transition")
-         .from("stateRoot")
+         .addE("sem").from("stateRoot")
+         .property("domain", "parser").property("role", "transition")
+         .sideEffect(GremlinUtils.setEdgeOrd())
          .iterate();
     }
 
@@ -127,8 +137,9 @@ public class SemanticAnalysis {
          .outE("sem").property("domain", "parser").has("role", "state").inV()
          .filter(__.outE("sem").has("domain", "parser").has("role", "name").inV()
                    .has("value", "start"))
-         .addE("sem").property("domain", "parser").property("role", "start")
-         .from("parserRoot")
+         .addE("sem").from("parserRoot")
+         .property("domain", "parser").property("role", "start")
+         .sideEffect(GremlinUtils.setEdgeOrd())
          .iterate();
     }
 
@@ -152,16 +163,18 @@ public class SemanticAnalysis {
 
             if(nextName.equals("accept") || nextName.equals("reject")){
                 g.E().hasLabel("sem").property("domain", "parser").has("role", "parser").inV()
-                 .addE("sem").property("domain", "parser").property("role", "final")
-                 .to(__.V(state))
+                 .addE("sem").to(__.V(state))
+                 .property("domain", "parser").property("role", "final")
+                 .sideEffect(GremlinUtils.setEdgeOrd())
                  .iterate();
             } else {
                 g.E().hasLabel("sem").property("domain", "parser").has("role", "state").inV()
                 .filter(__.outE("sem").has("domain", "parser").has("role", "name").inV()
                             .sideEffect(t -> t.get().value("class"))
                         .has("value", nextName))
-                .addE("sem").property("domain", "parser").property("role", "next")
-                .from(__.V(state))
+                .addE("sem").from(__.V(state))
+                .property("domain", "parser").property("role", "next")
+                .sideEffect(GremlinUtils.setEdgeOrd())
                 .iterate();
             }
         }
@@ -177,8 +190,9 @@ public class SemanticAnalysis {
                   .has("class", "DirectApplicationContext").or()
                   .has("class", "ConstantDeclarationContext").or()
                   .has("class", "VariableDeclarationContext"))
-         .addE("sem").property("domain", "parser").property("role", "statement")
-         .from("synState")
+         .addE("sem").from("synState")
+         .property("domain", "parser").property("role", "statement")
+         .sideEffect(GremlinUtils.setEdgeOrd())
          .iterate();
 
     }

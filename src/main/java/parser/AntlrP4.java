@@ -39,7 +39,7 @@ public class AntlrP4 {
         SemanticAnalysis.analyse(graph);
         ControlFlowAnalysis.analyse(graph);
 
-//        printSemanticGraph(graph);
+       printSemanticGraph(graph);
 //        printSyntaxTree(graph);
         printCfg(graph);
 
