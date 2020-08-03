@@ -3,9 +3,12 @@ package parser;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.tinkerpop.gremlin.process.traversal.Order;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
+import org.apache.tinkerpop.gremlin.process.traversal.step.TraversalOptionParent.Pick;
+import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 
@@ -14,6 +17,7 @@ public class SemanticAnalysis {
     public static void analyse(Graph graph){
         GraphTraversalSource g = graph.traversal();
         Parser.analyse(g);
+        Control.analyse(g);
         Instantiation.analyse(g);
     }
 
@@ -29,13 +33,13 @@ public class SemanticAnalysis {
         private static void findParsers(GraphTraversalSource g) {
             g.V().hasLabel(Dom.SYN).has(Dom.Syn.V.CLASS, "ParserDeclarationContext")
             .addE(Dom.SEM).from(g.V().hasLabel(Dom.SYN).has(Dom.Syn.V.NODE_ID, 0))
-            .property(Dom.Sem.DOMAIN, Dom.Sem.Domain.CROSSCUT).property(Dom.Sem.ROLE, Dom.Sem.Role.Crosscut.PARSER)
+            .property(Dom.Sem.DOMAIN, Dom.Sem.Domain.TOP).property(Dom.Sem.ROLE, Dom.Sem.Role.Top.PARSER)
             .sideEffect(GremlinUtils.setEdgeOrd())
             .iterate();
         }
 
         private static void findParserNames(GraphTraversalSource g) {
-            g.E().hasLabel(Dom.SEM).has(Dom.Sem.DOMAIN, Dom.Sem.Domain.CROSSCUT).has(Dom.Sem.ROLE, Dom.Sem.Role.Crosscut.PARSER).inV()
+            g.E().hasLabel(Dom.SEM).has(Dom.Sem.DOMAIN, Dom.Sem.Domain.TOP).has(Dom.Sem.ROLE, Dom.Sem.Role.Top.PARSER).inV()
                 .as("parserRoot")
                 .outE(Dom.SYN).has(Dom.Syn.E.RULE, "parserTypeDeclaration").inV()
                 .outE(Dom.SYN).has(Dom.Syn.E.RULE, "name").inV()
@@ -49,7 +53,7 @@ public class SemanticAnalysis {
 
 
         private static void findStates(GraphTraversalSource g) {
-            g.E().hasLabel(Dom.SEM).has(Dom.Sem.DOMAIN, Dom.Sem.Domain.CROSSCUT).has(Dom.Sem.ROLE, Dom.Sem.Role.Crosscut.PARSER).inV()
+            g.E().hasLabel(Dom.SEM).has(Dom.Sem.DOMAIN, Dom.Sem.Domain.TOP).has(Dom.Sem.ROLE, Dom.Sem.Role.Top.PARSER).inV()
                 .as("parserRoot")
                 .repeat(__.out(Dom.SYN))
                 .until(__.outE(Dom.SYN).has(Dom.Syn.E.RULE, "parserStates").count().is(0))
@@ -149,7 +153,7 @@ public class SemanticAnalysis {
         }
 
         private static void findStartState(GraphTraversalSource g) {
-            g.E().hasLabel(Dom.SEM).has(Dom.Sem.DOMAIN, Dom.Sem.Domain.CROSSCUT).has(Dom.Sem.ROLE, Dom.Sem.Role.Crosscut.PARSER).inV()
+            g.E().hasLabel(Dom.SEM).has(Dom.Sem.DOMAIN, Dom.Sem.Domain.TOP).has(Dom.Sem.ROLE, Dom.Sem.Role.Top.PARSER).inV()
             .as("parserRoot")
             .outE(Dom.SEM).property(Dom.Sem.DOMAIN, Dom.Sem.Domain.PARSER).has(Dom.Sem.ROLE, Dom.Sem.Role.Parser.STATE).inV()
             .filter(__.outE(Dom.SEM).has(Dom.Sem.DOMAIN, Dom.Sem.Domain.PARSER).has(Dom.Sem.ROLE, Dom.Sem.Role.Parser.NAME).inV()
@@ -180,7 +184,7 @@ public class SemanticAnalysis {
 
                 if(nextName.equals("accept") || nextName.equals("reject")){
 
-                    g.E().hasLabel(Dom.SEM).has(Dom.Sem.DOMAIN, Dom.Sem.Domain.CROSSCUT).has(Dom.Sem.ROLE, Dom.Sem.Role.Crosscut.PARSER).inV()
+                    g.E().hasLabel(Dom.SEM).has(Dom.Sem.DOMAIN, Dom.Sem.Domain.TOP).has(Dom.Sem.ROLE, Dom.Sem.Role.Top.PARSER).inV()
                     .addE(Dom.SEM).to(__.V(state))
                     .property(Dom.Sem.DOMAIN, Dom.Sem.Domain.PARSER).property(Dom.Sem.ROLE, Dom.Sem.Role.Parser.FINAL)
                     .sideEffect(GremlinUtils.setEdgeOrd())
@@ -218,6 +222,144 @@ public class SemanticAnalysis {
         }
     }
 
+    private static class Control {
+        private static void analyse(GraphTraversalSource g) {
+            findControl(g);
+            findControlName(g);
+            findControlBody(g);
+            findBlockStatements(g);
+            findConditionalBranches(g);
+            findReturnStatements(g);
+        }
+
+        // NOTE this is almost equivalent to the parser
+        private static void findControl(GraphTraversalSource g) {
+            g.V().hasLabel(Dom.SYN).has(Dom.Syn.V.CLASS, "ControlDeclarationContext")
+            .addE(Dom.SEM).from(g.V().hasLabel(Dom.SYN).has(Dom.Syn.V.NODE_ID, 0))
+            .property(Dom.Sem.DOMAIN, Dom.Sem.Domain.TOP).property(Dom.Sem.ROLE, Dom.Sem.Role.Top.CONTROL)
+            .sideEffect(GremlinUtils.setEdgeOrd())
+            .iterate();
+        }
+
+        // NOTE this is almost equivalent to the parser
+        private static void findControlName(GraphTraversalSource g) {
+
+            g.E().hasLabel(Dom.SEM).has(Dom.Sem.DOMAIN, Dom.Sem.Domain.TOP).has(Dom.Sem.ROLE, Dom.Sem.Role.Top.CONTROL).inV()
+                .as("controlRoot")
+                .outE(Dom.SYN).has(Dom.Syn.E.RULE, "controlTypeDeclaration").inV()
+                .outE(Dom.SYN).has(Dom.Syn.E.RULE, "name").inV()
+                .repeat(__.out(Dom.SYN))
+                .until(__.has(Dom.Syn.V.CLASS, "TerminalNodeImpl"))
+                .addE(Dom.SEM).from("controlRoot")
+                .property(Dom.Sem.DOMAIN, Dom.Sem.Domain.CONTROL).property(Dom.Sem.ROLE, Dom.Sem.Role.Control.NAME)
+                .sideEffect(GremlinUtils.setEdgeOrd())
+                .iterate();
+        }
+
+        private static void findControlBody(GraphTraversalSource g) {
+            g.E().hasLabel(Dom.SEM)
+             .has(Dom.Sem.DOMAIN, Dom.Sem.Domain.TOP).has(Dom.Sem.ROLE, Dom.Sem.Role.Top.CONTROL).inV()
+             .addE(Dom.SEM).to(__.outE(Dom.SYN).has(Dom.Syn.E.RULE, "controlBody").inV().out(Dom.SYN))
+             .property(Dom.Sem.DOMAIN, Dom.Sem.Domain.CONTROL).property(Dom.Sem.ROLE, Dom.Sem.Role.Control.BODY)
+             .sideEffect(GremlinUtils.setEdgeOrd())
+             .iterate();
+        }
+
+        private static void findBlockStatements(GraphTraversalSource g) {
+            g.E().hasLabel(Dom.SEM)
+             .has(Dom.Sem.DOMAIN, Dom.Sem.Domain.TOP).has(Dom.Sem.ROLE, Dom.Sem.Role.Top.CONTROL).inV()
+             .repeat(__.out(Dom.SYN))
+             .until(__.has(Dom.Syn.V.CLASS, "BlockStatementContext"))
+            .as("blockRoot")
+            .repeat(__.out())
+            .until(__.has(Dom.Syn.V.CLASS, "AssignmentOrMethodCallStatementContext").or()
+                    .has(Dom.Syn.V.CLASS, "DirectApplicationContext").or()
+                    .has(Dom.Syn.V.CLASS, "ConditionalStatementContext").or()
+                    .has(Dom.Syn.V.CLASS, "BlockStatementContext").or()
+                    .has(Dom.Syn.V.CLASS, "EmptyStatement").or()
+                    .has(Dom.Syn.V.CLASS, "ExitStatement").or()
+                    .has(Dom.Syn.V.CLASS, "ReturnStatement").or()
+                    .has(Dom.Syn.V.CLASS, "SwitchStatement"))
+            .choose(__.values(Dom.Syn.V.CLASS))
+            .option("BlockStatementContext",
+                __.addE(Dom.SEM).from("blockRoot")
+                  .property(Dom.Sem.ROLE, Dom.Sem.Role.Control.NEST))
+            .option("ConditionalStatementContext",
+                __.addE(Dom.SEM).from("blockRoot")
+                  .property(Dom.Sem.ROLE, Dom.Sem.Role.Control.NEST))
+            .option(Pick.none,
+                __.addE(Dom.SEM).from("blockRoot")
+                  .property(Dom.Sem.ROLE, Dom.Sem.Role.Control.STATEMENT))
+            .property(Dom.Sem.DOMAIN, Dom.Sem.Domain.CONTROL)
+            .sideEffect(GremlinUtils.setEdgeOrd())
+            .iterate();
+        }
+
+
+        @SuppressWarnings("unchecked")
+        private static void findConditionalBranches(GraphTraversalSource g) {
+
+            g.E().hasLabel(Dom.SEM)
+             .has(Dom.Sem.DOMAIN, Dom.Sem.Domain.TOP).has(Dom.Sem.ROLE, Dom.Sem.Role.Top.CONTROL).inV()
+             .repeat(__.out(Dom.SYN))
+             .until(__.has(Dom.Syn.V.CLASS, "ConditionalStatementContext"))
+             .as("cond")
+             .outE(Dom.SYN).has(Dom.Syn.E.RULE, "statement")
+             .order().by(Dom.Syn.E.ORD)
+             .inV().out(Dom.SYN)
+             .<Vertex>union(
+                 __.<Vertex>limit(1)
+                    .addE(Dom.SEM).from("cond")
+                    .property(Dom.Sem.DOMAIN, Dom.Sem.Domain.CONTROL)
+                    .property(Dom.Sem.ROLE, Dom.Sem.Role.Control.TRUE_BRANCH)
+                    .sideEffect(GremlinUtils.setEdgeOrd()).inV(),
+                __.<Vertex>skip(1)
+                    .addE(Dom.SEM).from("cond")
+                    .property(Dom.Sem.DOMAIN, Dom.Sem.Domain.CONTROL)
+                    .property(Dom.Sem.ROLE, Dom.Sem.Role.Control.FALSE_BRANCH)
+                    .sideEffect(GremlinUtils.setEdgeOrd()).inV())
+             .iterate();
+        }
+
+        private static void findReturnStatements(GraphTraversalSource g) {
+
+//            g.E().hasLabel(Dom.SEM)
+//             .has(Dom.Sem.DOMAIN, Dom.Sem.Domain.TOP).has(Dom.Sem.ROLE, Dom.Sem.Role.Top.CONTROL).inV()
+//             .as("controlRoot")
+//             .outE(Dom.SEM).has(Dom.Sem.DOMAIN, Dom.Sem.Domain.CONTROL).has(Dom.Sem.ROLE, Dom.Sem.Role.Control.BODY)
+//             .until(__.or(
+//                        __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.STATEMENT),
+//                        __.inV()
+//                          .and(
+//                            __.has(Dom.Syn.V.CLASS, "BlockStatementContext"),
+//                            __.outE(Dom.SYN).has(Dom.Syn.E.RULE, "statOrDeclList").inV()
+//                              .out(Dom.SYN).count().is(0))))
+//             .repeat(__.inV()
+//                .<Vertex, Edge>choose(__.values(Dom.Syn.V.CLASS))
+//                .option("ConditionalStatementContext", 
+//                    __.outE(Dom.SEM)
+//                      .or(__.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.TRUE_BRANCH, 
+//                          __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.FALSE_BRANCH))))
+//                .option(Pick.none, 
+//                    __.outE(Dom.SEM)
+//                      .sideEffect(t -> System.out.println("before:" + t.get().value(Dom.Sem.ROLE).toString()))
+//                      .or(__.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.STATEMENT),
+//                          __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.NEST))
+//                      .sideEffect(t -> System.out.println("after:" + t.get().value(Dom.Sem.ROLE).toString()))
+//                      .order().by(Dom.Sem.ORD, Order.desc)
+//                      .limit(1))
+//                      )
+//             .inV()
+//             .addE(Dom.SEM).from("controlRoot")
+//             .property(Dom.Sem.ROLE, Dom.Sem.Role.Control.RETURN)
+//             .property(Dom.Sem.DOMAIN, Dom.Sem.Domain.CONTROL)
+//             .sideEffect(GremlinUtils.setEdgeOrd())
+//             .iterate();
+        }
+
+
+    }
+
     private static class Instantiation {
 
         private static void analyse(GraphTraversalSource g) {
@@ -232,26 +374,26 @@ public class SemanticAnalysis {
         private static void findInstantiation(GraphTraversalSource g) {
             g.V().hasLabel(Dom.SYN).has(Dom.Syn.V.CLASS, "InstantiationContext")
             .addE(Dom.SEM).from(g.V().hasLabel(Dom.SYN).has(Dom.Syn.V.NODE_ID, 0))
-            .property(Dom.Sem.DOMAIN, Dom.Sem.Domain.CROSSCUT).property(Dom.Sem.ROLE, Dom.Sem.Role.Crosscut.INSTANTIATION)
+            .property(Dom.Sem.DOMAIN, Dom.Sem.Domain.TOP).property(Dom.Sem.ROLE, Dom.Sem.Role.Top.INSTANTIATION)
             .sideEffect(GremlinUtils.setEdgeOrd())
             .iterate();
         }
 
         private static void findTypeRefName(GraphTraversalSource g) {
-            g.E().hasLabel(Dom.SEM).has(Dom.Sem.DOMAIN, Dom.Sem.Domain.CROSSCUT).has(Dom.Sem.ROLE, Dom.Sem.Role.Crosscut.INSTANTIATION).inV()
+            g.E().hasLabel(Dom.SEM).has(Dom.Sem.DOMAIN, Dom.Sem.Domain.TOP).has(Dom.Sem.ROLE, Dom.Sem.Role.Top.INSTANTIATION).inV()
              .as("insta")
              .outE(Dom.SYN).has(Dom.Syn.E.RULE, "typeRef").inV()
              .repeat(__.out(Dom.SYN)).until(__.has(Dom.Syn.V.CLASS, "TerminalNodeImpl"))
              .addE(Dom.SEM).from("insta")
              .sideEffect(GremlinUtils.setEdgeOrd())
              .property(Dom.Sem.DOMAIN, Dom.Sem.Domain.INSTANTIATION)
-             .property(Dom.Sem.ROLE, Dom.Sem.Role.Instantiation.INVOKER)
+             .property(Dom.Sem.ROLE, Dom.Sem.Role.Instantiation.TYPE)
              .iterate();
         }
 
 
         private static void findName(GraphTraversalSource g) {
-            g.E().hasLabel(Dom.SEM).has(Dom.Sem.DOMAIN, Dom.Sem.Domain.CROSSCUT).has(Dom.Sem.ROLE, Dom.Sem.Role.Crosscut.INSTANTIATION).inV()
+            g.E().hasLabel(Dom.SEM).has(Dom.Sem.DOMAIN, Dom.Sem.Domain.TOP).has(Dom.Sem.ROLE, Dom.Sem.Role.Top.INSTANTIATION).inV()
              .as("insta")
              .outE(Dom.SYN).has(Dom.Syn.E.RULE, "name").inV()
              .repeat(__.out(Dom.SYN)).until(__.has(Dom.Syn.V.CLASS, "TerminalNodeImpl"))
@@ -263,7 +405,7 @@ public class SemanticAnalysis {
         }
 
         private static void findArguments(GraphTraversalSource g) {
-            g.E().hasLabel(Dom.SEM).has(Dom.Sem.DOMAIN, Dom.Sem.Domain.CROSSCUT).has(Dom.Sem.ROLE, Dom.Sem.Role.Crosscut.INSTANTIATION).inV()
+            g.E().hasLabel(Dom.SEM).has(Dom.Sem.DOMAIN, Dom.Sem.Domain.TOP).has(Dom.Sem.ROLE, Dom.Sem.Role.Top.INSTANTIATION).inV()
                 .as("insta")
                 .repeat(__.out(Dom.SYN))
                 .until(__.has(Dom.Syn.V.CLASS, "ArgumentContext"))
@@ -287,8 +429,8 @@ public class SemanticAnalysis {
 
             for (Map<String,Vertex> m : invoked) {
                 g.V().hasLabel(Dom.SYN).has(Dom.Syn.V.NODE_ID, 0).outE(Dom.SEM)
-                 .or(__.has(Dom.Sem.DOMAIN, Dom.Sem.Domain.CROSSCUT).has(Dom.Sem.ROLE, Dom.Sem.Role.Crosscut.PARSER),
-                     __.has(Dom.Sem.DOMAIN, Dom.Sem.Domain.CROSSCUT).has(Dom.Sem.ROLE, Dom.Sem.Role.Crosscut.CONTROL))
+                 .or(__.has(Dom.Sem.DOMAIN, Dom.Sem.Domain.TOP).has(Dom.Sem.ROLE, Dom.Sem.Role.Top.PARSER),
+                     __.has(Dom.Sem.DOMAIN, Dom.Sem.Domain.TOP).has(Dom.Sem.ROLE, Dom.Sem.Role.Top.CONTROL))
                  .inV()
                  .filter(__.outE(Dom.SEM)
                            .or(__.has(Dom.Sem.ROLE, Dom.Sem.Role.Parser.NAME),

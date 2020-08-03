@@ -40,14 +40,14 @@ public class Dom {
         public static final String ORD="ord";
 
         public static class Domain {
-            public static final String CROSSCUT ="crosscut";
+            public static final String TOP ="top";
             public static final String PARSER ="parser";
             public static final String INSTANTIATION ="instantiation";
             public static final String CONTROL ="control";
         }
 
         public static class Role {
-            public static class Crosscut {
+            public static class Top {
                 public static final String PARSER ="parser";
                 public static final String CONTROL ="control";
                 public static final String INSTANTIATION ="instantiation";
@@ -55,6 +55,12 @@ public class Dom {
 
             public static class Control {
                 public static final String NAME ="name";
+				public static final String STATEMENT = "statement";
+				public static final String BODY = "body";
+				public static final String TRUE_BRANCH = "trueBranch";
+				public static final String NEST = "nest";
+				public static final String FALSE_BRANCH = "falseBranch";
+				public static final String RETURN = "return";
             }
             public static class Parser {
                 public static final String NAME ="name";
@@ -72,7 +78,7 @@ public class Dom {
                 public static final String ARGUMENT ="argument";
                 public static final String NAME ="name";
                 public static final String INVOKES ="invokes";
-                public static final String INVOKER ="invoker";
+                public static final String TYPE ="type";
             }
         }
    }
