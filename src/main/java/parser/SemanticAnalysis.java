@@ -52,6 +52,7 @@ public class SemanticAnalysis {
         }
 
 
+        // TODO until -> emit
         private static void findStates(GraphTraversalSource g) {
             g.E().hasLabel(Dom.SEM).has(Dom.Sem.DOMAIN, Dom.Sem.Domain.TOP).has(Dom.Sem.ROLE, Dom.Sem.Role.Top.PARSER).inV()
                 .as("parserRoot")
@@ -116,6 +117,7 @@ public class SemanticAnalysis {
                 .iterate();
         }
 
+        // TODO until -> emit
         private static void findTransitionSelectCase(GraphTraversalSource g) {
             g.E().hasLabel(Dom.SEM).has(Dom.Sem.DOMAIN, Dom.Sem.Domain.PARSER).has(Dom.Sem.ROLE, Dom.Sem.Role.Parser.TRANSITION).inV()
                 .as("transitionRoot")
@@ -204,6 +206,7 @@ public class SemanticAnalysis {
             }
         }
 
+        // TODO until -> emit
         private static void findStatements(GraphTraversalSource g){
 
             g.E().hasLabel(Dom.SEM).has(Dom.Sem.DOMAIN, Dom.Sem.Domain.PARSER).has(Dom.Sem.ROLE, Dom.Sem.Role.Parser.STATE).inV()
@@ -229,6 +232,7 @@ public class SemanticAnalysis {
             findControlBody(g);
             findBlockStatements(g);
             findConditionalBranches(g);
+            findLastStatements(g);
             findReturnStatements(g);
         }
 
@@ -269,7 +273,7 @@ public class SemanticAnalysis {
             g.E().hasLabel(Dom.SEM)
              .has(Dom.Sem.DOMAIN, Dom.Sem.Domain.TOP).has(Dom.Sem.ROLE, Dom.Sem.Role.Top.CONTROL).inV()
              .repeat(__.out(Dom.SYN))
-             .until(__.has(Dom.Syn.V.CLASS, "BlockStatementContext"))
+             .emit(__.has(Dom.Syn.V.CLASS, "BlockStatementContext"))
             .as("blockRoot")
             .repeat(__.out())
             .until(__.has(Dom.Syn.V.CLASS, "AssignmentOrMethodCallStatementContext").or()
@@ -302,7 +306,7 @@ public class SemanticAnalysis {
             g.E().hasLabel(Dom.SEM)
              .has(Dom.Sem.DOMAIN, Dom.Sem.Domain.TOP).has(Dom.Sem.ROLE, Dom.Sem.Role.Top.CONTROL).inV()
              .repeat(__.out(Dom.SYN))
-             .until(__.has(Dom.Syn.V.CLASS, "ConditionalStatementContext"))
+             .emit(__.has(Dom.Syn.V.CLASS, "ConditionalStatementContext"))
              .as("cond")
              .outE(Dom.SYN).has(Dom.Syn.E.RULE, "statement")
              .order().by(Dom.Syn.E.ORD)
@@ -321,43 +325,56 @@ public class SemanticAnalysis {
              .iterate();
         }
 
-        private static void findReturnStatements(GraphTraversalSource g) {
-
-//            g.E().hasLabel(Dom.SEM)
-//             .has(Dom.Sem.DOMAIN, Dom.Sem.Domain.TOP).has(Dom.Sem.ROLE, Dom.Sem.Role.Top.CONTROL).inV()
-//             .as("controlRoot")
-//             .outE(Dom.SEM).has(Dom.Sem.DOMAIN, Dom.Sem.Domain.CONTROL).has(Dom.Sem.ROLE, Dom.Sem.Role.Control.BODY)
-//             .until(__.or(
-//                        __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.STATEMENT),
-//                        __.inV()
-//                          .and(
-//                            __.has(Dom.Syn.V.CLASS, "BlockStatementContext"),
-//                            __.outE(Dom.SYN).has(Dom.Syn.E.RULE, "statOrDeclList").inV()
-//                              .out(Dom.SYN).count().is(0))))
-//             .repeat(__.inV()
-//                .<Vertex, Edge>choose(__.values(Dom.Syn.V.CLASS))
-//                .option("ConditionalStatementContext", 
-//                    __.outE(Dom.SEM)
-//                      .or(__.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.TRUE_BRANCH, 
-//                          __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.FALSE_BRANCH))))
-//                .option(Pick.none, 
-//                    __.outE(Dom.SEM)
-//                      .sideEffect(t -> System.out.println("before:" + t.get().value(Dom.Sem.ROLE).toString()))
-//                      .or(__.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.STATEMENT),
-//                          __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.NEST))
-//                      .sideEffect(t -> System.out.println("after:" + t.get().value(Dom.Sem.ROLE).toString()))
-//                      .order().by(Dom.Sem.ORD, Order.desc)
-//                      .limit(1))
-//                      )
-//             .inV()
-//             .addE(Dom.SEM).from("controlRoot")
-//             .property(Dom.Sem.ROLE, Dom.Sem.Role.Control.RETURN)
-//             .property(Dom.Sem.DOMAIN, Dom.Sem.Domain.CONTROL)
-//             .sideEffect(GremlinUtils.setEdgeOrd())
-//             .iterate();
+        // Sends a 'last' edge from each 'block statement' node to its last 'statement' node. 
+        // This can be either an actual statement, a nested block, or a nested conditional.
+        private static void findLastStatements(GraphTraversalSource g) {
+            g.E().hasLabel(Dom.SEM)
+             .has(Dom.Sem.DOMAIN, Dom.Sem.Domain.TOP).has(Dom.Sem.ROLE, Dom.Sem.Role.Top.CONTROL).inV()
+             .repeat(__.out(Dom.SYN))
+             .emit(__.has(Dom.Syn.V.CLASS, "BlockStatementContext"))
+             .as("block")
+             .local(
+                __.outE(Dom.SEM)
+                  .or(__.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.STATEMENT),
+                      __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.NEST))
+             .order().by(Dom.Sem.ORD, Order.desc)
+             .limit(1)
+             .inV()
+             .addE(Dom.SEM).from("block"))
+             .property(Dom.Sem.DOMAIN, Dom.Sem.Domain.CONTROL)
+             .property(Dom.Sem.ROLE, Dom.Sem.Role.Control.LAST)
+             .sideEffect(GremlinUtils.setEdgeOrd())
+             .iterate();
         }
 
-
+        // Finds all those statements (or empty blocks) of a control definition 
+        // that can be the last statement of that control.
+        // Note that there can multiple potential last statements because of 
+        // conditionals.
+        // This is a transitive closure of 'body', 'trueBranch', 'falseBranch',
+        // and 'last' edges
+        private static void findReturnStatements(GraphTraversalSource g) {
+                g.E().hasLabel(Dom.SEM)
+                .has(Dom.Sem.DOMAIN, Dom.Sem.Domain.TOP).has(Dom.Sem.ROLE, Dom.Sem.Role.Top.CONTROL).inV()
+                .as("controlRoot")
+                .repeat(__.outE(Dom.SEM).has(Dom.Sem.DOMAIN, Dom.Sem.Domain.CONTROL)
+                        .or(__.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.BODY),
+                            __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.TRUE_BRANCH),
+                            __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.FALSE_BRANCH),
+                            __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.LAST))
+                        .inV())
+                .until(__.outE(Dom.SEM).has(Dom.Sem.DOMAIN, Dom.Sem.Domain.CONTROL)
+                        .or(__.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.BODY),
+                            __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.TRUE_BRANCH),
+                            __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.FALSE_BRANCH),
+                            __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.LAST))
+                        .count().is(0))
+                .addE(Dom.SEM).from("controlRoot")
+                .property(Dom.Sem.DOMAIN, Dom.Sem.Domain.CONTROL)
+                .property(Dom.Sem.ROLE, Dom.Sem.Role.Control.RETURN)
+                .sideEffect(GremlinUtils.setEdgeOrd())
+                .iterate();
+        }
     }
 
     private static class Instantiation {

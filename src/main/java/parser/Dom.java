@@ -22,12 +22,23 @@ public class Dom {
     public static class E {
         public static final String ROLE="role";
         public static final String ORD="ord";
+		public static final String EDGE_ORD = "edgeOrd";
 
         public static class Role {
             public static final String LAB="lab";
             public static final String FLOW="flow";
             public static final String ASSOC="assoc";
             public static final String STATEMENT="statement";
+            public static final String ENTRY="entry";
+            public static final String EXIT="exit";
+        }
+    }
+
+    public static class V {
+        public static final String TYPE="type";
+
+        public static class Type {
+            public static final String BLOCK="block";
             public static final String ENTRY="entry";
             public static final String EXIT="exit";
         }
@@ -61,6 +72,7 @@ public class Dom {
 				public static final String NEST = "nest";
 				public static final String FALSE_BRANCH = "falseBranch";
 				public static final String RETURN = "return";
+				public static final String LAST = "last";
             }
             public static class Parser {
                 public static final String NAME ="name";
