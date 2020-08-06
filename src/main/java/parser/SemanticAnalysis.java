@@ -325,8 +325,8 @@ public class SemanticAnalysis {
              .iterate();
         }
 
-        // Sends a 'last' edge from each 'block statement' node to its last 'statement' node. 
-        // This can be either an actual statement, a nested block, or a nested conditional.
+        // Sends a 'last' edge from each 'block statement' node to its last nested node.
+        // This will be either a block, or a conditional.
         private static void findLastStatements(GraphTraversalSource g) {
             g.E().hasLabel(Dom.SEM)
              .has(Dom.Sem.DOMAIN, Dom.Sem.Domain.TOP).has(Dom.Sem.ROLE, Dom.Sem.Role.Top.CONTROL).inV()
@@ -334,9 +334,9 @@ public class SemanticAnalysis {
              .emit(__.has(Dom.Syn.V.CLASS, "BlockStatementContext"))
              .as("block")
              .local(
-                __.outE(Dom.SEM)
-                  .or(__.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.STATEMENT),
-                      __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.NEST))
+                __.outE(Dom.SEM).has(Dom.Sem.ROLE, Dom.Sem.Role.Control.NEST)
+//                  .or(__.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.STATEMENT),
+//                      __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.NEST))
              .order().by(Dom.Sem.ORD, Order.desc)
              .limit(1)
              .inV()
@@ -347,21 +347,34 @@ public class SemanticAnalysis {
              .iterate();
         }
 
+        // For each block that nests other blocks:
         // Finds all those statements (or empty blocks) of a control definition 
         // that can be the last statement of that control.
         // Note that there can multiple potential last statements because of 
         // conditionals.
         // This is a transitive closure of 'body', 'trueBranch', 'falseBranch',
         // and 'last' edges
+        // IMPROVEMENT: not counting conditionals, this is now polynomial time but it could be linearized if higher nodes reused the return statements of their last-nodes.
         private static void findReturnStatements(GraphTraversalSource g) {
+
                 g.E().hasLabel(Dom.SEM)
-                .has(Dom.Sem.DOMAIN, Dom.Sem.Domain.TOP).has(Dom.Sem.ROLE, Dom.Sem.Role.Top.CONTROL).inV()
-                .as("controlRoot")
-                .repeat(__.outE(Dom.SEM).has(Dom.Sem.DOMAIN, Dom.Sem.Domain.CONTROL)
-                        .or(__.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.BODY),
-                            __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.TRUE_BRANCH),
-                            __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.FALSE_BRANCH),
-                            __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.LAST))
+                 .or(__.has(Dom.Sem.DOMAIN, Dom.Sem.Domain.TOP)
+                       .has(Dom.Sem.ROLE, Dom.Sem.Role.Top.CONTROL),
+                     __.has(Dom.Sem.DOMAIN, Dom.Sem.Domain.CONTROL)
+                      .or(__.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.BODY),
+                          __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.TRUE_BRANCH),
+                          __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.FALSE_BRANCH),
+                          __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.NEST)))
+                .inV().as("controlRoot") 
+
+                .repeat(__.outE(Dom.SEM)
+                          .or(__.has(Dom.Sem.DOMAIN, Dom.Sem.Domain.TOP)
+                                .has(Dom.Sem.ROLE, Dom.Sem.Role.Top.CONTROL),
+                              __.has(Dom.Sem.DOMAIN, Dom.Sem.Domain.CONTROL)
+                                .or(__.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.BODY),
+                                    __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.TRUE_BRANCH),
+                                    __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.FALSE_BRANCH),
+                                    __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.LAST)))
                         .inV())
                 .until(__.outE(Dom.SEM).has(Dom.Sem.DOMAIN, Dom.Sem.Domain.CONTROL)
                         .or(__.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.BODY),
@@ -369,11 +382,13 @@ public class SemanticAnalysis {
                             __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.FALSE_BRANCH),
                             __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.LAST))
                         .count().is(0))
+
                 .addE(Dom.SEM).from("controlRoot")
                 .property(Dom.Sem.DOMAIN, Dom.Sem.Domain.CONTROL)
                 .property(Dom.Sem.ROLE, Dom.Sem.Role.Control.RETURN)
                 .sideEffect(GremlinUtils.setEdgeOrd())
                 .iterate();
+
         }
     }
 

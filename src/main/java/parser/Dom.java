@@ -22,11 +22,12 @@ public class Dom {
     public static class E {
         public static final String ROLE="role";
         public static final String ORD="ord";
-		public static final String EDGE_ORD = "edgeOrd";
 
         public static class Role {
             public static final String LAB="lab";
             public static final String FLOW="flow";
+            public static final String TRUE_FLOW="trueFlow";
+            public static final String FALSE_FLOW="falseFlow";
             public static final String ASSOC="assoc";
             public static final String STATEMENT="statement";
             public static final String ENTRY="entry";
