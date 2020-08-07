@@ -1,5 +1,6 @@
 package parser;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -270,33 +271,47 @@ public class SemanticAnalysis {
         }
 
         private static void findBlockStatements(GraphTraversalSource g) {
-            g.E().hasLabel(Dom.SEM)
-             .has(Dom.Sem.DOMAIN, Dom.Sem.Domain.TOP).has(Dom.Sem.ROLE, Dom.Sem.Role.Top.CONTROL).inV()
-             .repeat(__.out(Dom.SYN))
-             .emit(__.has(Dom.Syn.V.CLASS, "BlockStatementContext"))
-            .as("blockRoot")
-            .repeat(__.out())
-            .until(__.has(Dom.Syn.V.CLASS, "AssignmentOrMethodCallStatementContext").or()
-                    .has(Dom.Syn.V.CLASS, "DirectApplicationContext").or()
-                    .has(Dom.Syn.V.CLASS, "ConditionalStatementContext").or()
-                    .has(Dom.Syn.V.CLASS, "BlockStatementContext").or()
-                    .has(Dom.Syn.V.CLASS, "EmptyStatement").or()
-                    .has(Dom.Syn.V.CLASS, "ExitStatement").or()
-                    .has(Dom.Syn.V.CLASS, "ReturnStatement").or()
-                    .has(Dom.Syn.V.CLASS, "SwitchStatement"))
-            .choose(__.values(Dom.Syn.V.CLASS))
-            .option("BlockStatementContext",
-                __.addE(Dom.SEM).from("blockRoot")
-                  .property(Dom.Sem.ROLE, Dom.Sem.Role.Control.NEST))
-            .option("ConditionalStatementContext",
-                __.addE(Dom.SEM).from("blockRoot")
-                  .property(Dom.Sem.ROLE, Dom.Sem.Role.Control.NEST))
-            .option(Pick.none,
-                __.addE(Dom.SEM).from("blockRoot")
-                  .property(Dom.Sem.ROLE, Dom.Sem.Role.Control.STATEMENT))
-            .property(Dom.Sem.DOMAIN, Dom.Sem.Domain.CONTROL)
-            .sideEffect(GremlinUtils.setEdgeOrd())
-            .iterate();
+        // Note: 
+        // - The syntax tree has represents linked lists in reverse-order: the head is the leaf.
+        // - Gremlin has no reverse operation. It can be simulated using fold() and Collections.reverse, but then path information (incl. names) is lost.
+            List<Map<String, Vertex>> ms = 
+                g.E().hasLabel(Dom.SEM)
+                .has(Dom.Sem.DOMAIN, Dom.Sem.Domain.TOP).has(Dom.Sem.ROLE, Dom.Sem.Role.Top.CONTROL).inV()
+                .repeat(__.out(Dom.SYN))
+                .emit(__.has(Dom.Syn.V.CLASS, "BlockStatementContext"))
+                .as("blockRoot")
+                .repeat(__.out())
+                .until(__.has(Dom.Syn.V.CLASS, "AssignmentOrMethodCallStatementContext").or()
+                        .has(Dom.Syn.V.CLASS, "DirectApplicationContext").or()
+                        .has(Dom.Syn.V.CLASS, "ConditionalStatementContext").or()
+                        .has(Dom.Syn.V.CLASS, "BlockStatementContext").or()
+                        .has(Dom.Syn.V.CLASS, "EmptyStatement").or()
+                        .has(Dom.Syn.V.CLASS, "ExitStatement").or()
+                        .has(Dom.Syn.V.CLASS, "ReturnStatement").or()
+                        .has(Dom.Syn.V.CLASS, "SwitchStatement"))
+                .as("statement")
+                .<Vertex>select("blockRoot", "statement")
+                .toList();
+
+            Collections.reverse(ms);
+            for (Map<String,Vertex> m : ms) {
+                Vertex blockRoot = m.get("blockRoot");
+                Vertex statement = m.get("statement");
+                
+                g.V(statement).choose(__.values(Dom.Syn.V.CLASS))
+                .option("BlockStatementContext",
+                    __.addE(Dom.SEM).from(__.V(blockRoot))
+                    .property(Dom.Sem.ROLE, Dom.Sem.Role.Control.NEST))
+                .option("ConditionalStatementContext",
+                    __.addE(Dom.SEM).from(__.V(blockRoot))
+                    .property(Dom.Sem.ROLE, Dom.Sem.Role.Control.NEST))
+                .option(Pick.none,
+                    __.addE(Dom.SEM).from(__.V(blockRoot))
+                    .property(Dom.Sem.ROLE, Dom.Sem.Role.Control.STATEMENT))
+                .property(Dom.Sem.DOMAIN, Dom.Sem.Domain.CONTROL)
+                .sideEffect(GremlinUtils.setEdgeOrd())
+                .iterate();
+            }
         }
 
 

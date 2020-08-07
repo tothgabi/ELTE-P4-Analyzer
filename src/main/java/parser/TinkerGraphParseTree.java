@@ -76,22 +76,28 @@ public class TinkerGraphParseTree {
         }
 
         public void enterEveryRule(ParserRuleContext ctx){
-            GraphTraversal<Vertex, Vertex> t =
+            Vertex id =
                 g   .addV(Dom.SYN).sideEffect(GremlinUtils.setNodeId())
 //                    .property("nodeId", Integer.toString(ids.size()))
                     .property(Dom.Syn.V.CLASS, ctx.getClass().getSimpleName())
                     .property(Dom.Syn.V.START, ctx.getSourceInterval().a)
-                    .property(Dom.Syn.V.END, ctx.getSourceInterval().b);
+                    .property(Dom.Syn.V.END, ctx.getSourceInterval().b)
+                    .next();
             
-            Vertex id = 
-                    t.toList().get(0);
             ids.put(ctx, id);
             if(ctx.parent == null) return;
             Object parentId = ids.get(ctx.parent);
+            int childIdx = -1;
+            for (int i = 0; i < ctx.parent.getChildCount(); i++) {
+               if(!ctx.parent.getChild(i).equals(ctx)) continue;
+               childIdx = i;
+               break;
+            }
             if(parentId == null) throw new RuntimeException("parentId == null");
             g.V(id).addE(Dom.SYN).from(ids.get(ctx.parent))
                    .property(Dom.Syn.E.RULE,ruleNames[ctx.getRuleIndex()])
-                   .sideEffect(GremlinUtils.setEdgeOrd())
+//                   .sideEffect(GremlinUtils.setEdgeOrd())
+                   .property(Dom.Syn.E.ORD, childIdx)
                    .iterate();
         }
 
