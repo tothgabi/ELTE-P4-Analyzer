@@ -31,7 +31,7 @@ public class Dom {
             public static final String ASSOC="assoc";
             public static final String STATEMENT="statement";
             public static final String ENTRY="entry";
-            public static final String EXIT="exit";
+            public static final String CONTINUATION="continuation";
         }
     }
 

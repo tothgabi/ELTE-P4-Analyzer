@@ -51,10 +51,10 @@ public class ControlFlowAnalysis {
         .property(Dom.Cfg.E.ROLE,Dom.Cfg.E.Role.ENTRY)
         .sideEffect(GremlinUtils.setEdgeOrd())
         .select("entryCf")
-        .addE(Dom.CFG).from(__.addV(Dom.CFG)
+        .addE(Dom.CFG).to(__.addV(Dom.CFG)
                               .property(Dom.Cfg.V.TYPE, Dom.Cfg.V.Type.EXIT)
                               .sideEffect(GremlinUtils.setNodeId()))
-        .property(Dom.Cfg.E.ROLE,Dom.Cfg.E.Role.EXIT)
+        .property(Dom.Cfg.E.ROLE,Dom.Cfg.E.Role.CONTINUATION)
         .sideEffect(GremlinUtils.setEdgeOrd())
         .iterate();
     }
@@ -121,7 +121,7 @@ public class ControlFlowAnalysis {
             .as("finalCf")
             .select("synParser")
             .inE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC).outV()
-            .inE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.EXIT).outV()
+            .inE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.CONTINUATION).outV()
             .addE(Dom.CFG).from("finalCf")
             .property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.FLOW).sideEffect(GremlinUtils.setEdgeOrd())
             .iterate();
@@ -144,133 +144,100 @@ public class ControlFlowAnalysis {
     }
 
     static class Control { 
-
-        // DONE turns out traversal order is not good. this must be fixed where syntax ORD is set, the rest should be ok. (it was not ORD, it was the structure of the syntax tree)
-        // DONE there is an empty state added between the state of the conditional and the state of the previous block. (it was caused by consecutive nest.)
-        // TODO the last segment of statements is not copied to state
         private static void analyse(GraphTraversalSource g) {
-            // The core idea is that the semantic analysis sets last-edges and return-edges for each block. 
-            // Then, if you are nesting a block in the middle of your code, you know where does that nested block starts, and you also know that it ends at it return point(s).
-            // In case you nest a block in the end of your code, you don't need to know where it ends: your return point(s) will be the same as the nested blocks return point(s). You don't need to do anything with that because the block who in turn nests your code will use that point to know where your code ends.
+            // We traverse the hierarchical syntax tree to create a control flow graph.
+            // The two core idea for this is that:
+            // - A list of nested blocks can processed into a cfg if know where the nested blocks end (not trivial, because nested blocks themselves can be nesting blocks or conditionals): we just chain the cfg-block associated with the return point of any nested-block to the cfg-block associated with the start of the subsequent nested-block.
+            // - Nested blocks are always below nesting blocks in the syntax tree: going in leaf-to-root direction, we can be assured that nested blocks are already fully processed (there is a state  associated with their return point).
+            // Additionally, if a block contains both nested blocks and statements, we need to create further cfg-blocks in the chain for this block to contain the statements.
 
-            // Assumption: the set of nodes pointed by return are a subset of those pointed by nest-, trueBranch-, or falseBranch-edges.
-
-            // First, each syn-node pointed by a body-, nest-, trueBranch-, or falseBranch-edge gets a cfg-block (associated to that syn-node). 
-            // The cfg-block associated with the body-edge endpoint gets a flow-edge from the entry. The cfg-block associated with the return point of the body-edge endpoint gets a flow-edge into the exit.
-            // In a second iteration, we analyse each cfg-blocks separately:
-            // - The cfg-block gets all statements of the associated syn-node until there is a nest-edge (or the end).
-            // - For each nest-edge a new cfg-block is created. This new cfg-block again gets all statements from the original associated syn-node until there is a nest-edge (or the end).
-            // - The first cfg-block is linked to the (first) cfg-block associated with the syn-node pointed by the first nest-edge. We then check which cfg-block corresponds to the return point of the nested syn-node, and link that to the cfg-block created for the second-edge.
-            // Finally, the analysis of the root syn-node of the control, and analysis the conditionals is straighforward
-
-            // The second iteration step-by-step:
-            // - Find all the nest-edges of the syn-block. For each nest-edge:
-            //   * Create a cfg-block and assign the corresponding statements.
-            //   * Find the cfg-block associated with the endpoint of the nest-edge.
-            //   * Find the cfg-block associated with the return point of the endpoint of the nest edge.
-            //   * Link the three cfg-blocks appropriately.
-            
-            // Note: A block can be nested either in the middle, or in the end.
-            // If the block is nested in the middle, then a new block for the continuation is needed, and the nested block will flow into the new block.
-            // If the block is nested in the end, then the return point of the nested block is the same as the return point of the nesting block. In this case, no need to create a continuation block, and no need to set the flow of the nested block. Instead, a higher block will set it (when it asks for the return point of the current block).
-
+            // NOTE: We assume the children always have higher nodeIds than their parents.
+            //      This way, if we process nodes in descending nodeIds, we can be assured
+            //      that children are always processed before their parents
             List<Edge> assocEdges=
-                g.E().hasLabel(Dom.SEM)
+            g.E().hasLabel(Dom.SEM)
                  .or(__.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.BODY),
-                     __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.TRUE_BRANCH),
-                     __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.FALSE_BRANCH),
-                     __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.NEST))
-                 .inV().as("synNode")
+                    __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.TRUE_BRANCH),
+                    __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.FALSE_BRANCH),
+                    __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.NEST))
+                 .inV()
+                 .order().by(Dom.Syn.V.NODE_ID, Order.desc)
+                 .as("synNode")
                  .addV(Dom.CFG).property(Dom.Cfg.V.TYPE, Dom.Cfg.V.Type.BLOCK)
                  .sideEffect(GremlinUtils.setNodeId())
                  .addE(Dom.CFG).to("synNode")
                  .property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC)
                  .sideEffect(GremlinUtils.setEdgeOrd())
                  .toList();
+
                 
-            analyseEntryExit(g);
+            analyseEntry(g);
             analyseConditions(g);
 
             for (Edge e : assocEdges) {
                 Vertex syntaxBlock = e.inVertex(); 
                 Vertex cfgBlock = e.outVertex();
 
-//                alternative(g, syntaxBlock, cfgBlock);
-//                if(true)
-//                    continue;
+                analyseNesting(g, syntaxBlock, cfgBlock);
+            }
+             
+            analyseExit(g);
 
-                List<Edge> nests =
-                    g.V(syntaxBlock)
-                    .outE(Dom.SEM).has(Dom.Sem.ROLE, Dom.Sem.Role.Control.NEST)                
-                    .toList();
-                
-                List<Long> intervals = 
-                    nests.stream()
-                         .map(n -> (Long) n.value(Dom.Sem.ORD))
-                         .collect(Collectors.toList());
+       }
 
-                // Add statements to the first cfgBlock
-                g.V(syntaxBlock).outE(Dom.SEM)
-                 .filter(intervals.isEmpty() ? __.identity() : __.has(Dom.Sem.ORD, P.lt(intervals.get(0))))
-                 .has(Dom.Sem.ROLE, Dom.Sem.Role.Control.STATEMENT).inV()
-                 .addE(Dom.CFG).from(__.V(cfgBlock))
-                 .property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.STATEMENT)
-                 .sideEffect(GremlinUtils.setEdgeOrd())
-                 .iterate();
+        // Algorithm:
+        // - Declare a stack and a variable called last block.
+        // - Iterate over the nests and statements.
+        // - If you find a statement put it into the stack
+        // - Else if you find a nest:
+        //   * If the stack is empty, get your nested cfg-block and link its returns to the last block (if there is one). 
+        //   * If the stack is not empty, create a block and claim all statements in the stack. link the new block to the last block (if there is one). get your nested cfg-block and link its returns to the new block. 
+        //   * Assign the nested cfg-block to the last block.
+        // - Get the first cfg-block, claim all the statements in the stack and link it to the last block (if there is one)
+        // - It is easy to keep track of composite blocks: the first time you assign the last block variable, copy that block to a separate place. Then after everything is done, send a continuation-edge from the first block to the copied block.
 
+        // NOTE: For each syn-block, we possibly create multible cfg-blocks:
+        // - Since we process the syn-block children in reverse order, the continuation cfg-block is the one created in the first iteration. This cfg-block needs to exist by the time we process the parent cfg-block. Processing syn-blocks of the syntax in bottom-to-top order satisfies this.
 
-                // Initially, lastCfgBlock is the cfg-block associated with the nesting nodes. 
-                // Then, it will be assigned those cfg-blocks that were created to contain the 
-                // code after the nested nodes.
+        // TODO continuation-edges can be used instead of the current semantic return-edges and assocs. 
+        //      but this needs continuation-edges to be set up for conditional blocks as well.
+        //      which in turn requires conditional analysis to be put inside the loop (to guarantee the right processing order)
+       private static void analyseNesting(GraphTraversalSource g, Vertex syntaxBlock, Vertex cfgBlock) {
 
-                // Note: this is usually a singleton. The only exception is when there are two consequtive nests and the first one has more than one return points.
-                List<Vertex> lastCfgBlocks = new ArrayList<>(Arrays.asList(cfgBlock));
-                for (int i = 0; i < nests.size(); i++) {
-                    Vertex nestedSyn = nests.get(i).inVertex();
+            List<Edge> nestsAndStmts =
+                g.V(syntaxBlock)
+                .outE(Dom.SEM)
+                .or(__.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.NEST),
+                    __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.STATEMENT))
+                .order().by(Dom.Sem.ORD, Order.desc)
+                .toList();
 
-                    // Select the cfg-block associated with the nested node,
-                    // and send into it a flow-edge from the last cfg-block that belongs to the nesting node.
-                    for(Vertex last : lastCfgBlocks)
+            Stack<Vertex> stack = new Stack<>();
+            Vertex latestContinuation = null;
+            Vertex firstContinuation = null;
+            for (Edge e : nestsAndStmts) {
+                if(e.value(Dom.Sem.ROLE).equals(Dom.Sem.Role.Control.STATEMENT)){
+                    stack.push(e.inVertex());
+                } else if (e.value(Dom.Sem.ROLE).equals(Dom.Sem.Role.Control.NEST)){
+                    Vertex nestedSyn = e.inVertex();
+                    Vertex nestedCfg = 
                         g.V(nestedSyn)
                         .inE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC).outV()
-                        .addE(Dom.CFG).from(last)
-                        .property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.FLOW)
-                        .sideEffect(GremlinUtils.setEdgeOrd())
-                        .iterate();
+                        .next();
 
-                    // If the following element is also a nest, then we want to avoid creating a new block, and instead we directly want to link up the two nests.
-                    boolean isConsecutiveNests = false; 
-                    if(i < nests.size() - 1){
-                        isConsecutiveNests = 
-                            !(g.V(syntaxBlock).outE(Dom.SEM)
-                              .has(Dom.Sem.ORD, P.between(intervals.get(i), intervals.get(i+1)))
-                              .has(Dom.Sem.ROLE, Dom.Sem.Role.Control.STATEMENT)
-                              .hasNext());
-                    }
-                    if(isConsecutiveNests){
-                        lastCfgBlocks.clear();
-                        lastCfgBlocks.addAll(
-                            g.V(nestedSyn)
-                            .optional(
-                                __.outE(Dom.SEM).has(Dom.Sem.ROLE, Dom.Sem.Role.Control.RETURN).inV())
-                            .inE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC).outV()
-                            .toList());
-                        continue;
-                    }
 
-                    // If the nested node is in the middle of the nesting node (not the end),
-                    // then create a new cfg-block, and send a flow-edge to the new cfg-block 
-                    // from the cfg-block associated with the return point of the nested node.
-                    // In case the nested node is a leaf (i.e. there is no return-edge), send the flow-edge from the cfg-block of the nested node node. 
-                    // Set the last cfg-block to the new cfg-block.
-                
+                    Object[] nestedReturnsCfg = 
+                        g.V(nestedSyn)
+                        .optional(
+                        __.outE(Dom.SEM).has(Dom.Sem.ROLE, Dom.Sem.Role.Control.RETURN).inV())
+                        .map(__.inE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC)
+                               .order().by(Dom.Cfg.E.ORD, Order.desc)
+                               .limit(1))
+                        .outV().toList()
+                        .toArray();
 
-                    // NOTE: isConsecutiveNests implies isMidPosition, but you can have isMidPosition without isConsecutiveNests 
-                    boolean isMidPosition =
-                      !(g.V(nestedSyn).inE(Dom.SEM).has(Dom.Sem.ROLE, Dom.Sem.Role.Control.LAST)
-                       .hasNext());
+                    if(!stack.isEmpty()){
 
-                    if(isMidPosition){
                         Vertex newBlock = 
                             g.addV(Dom.CFG).property(Dom.Cfg.V.TYPE, Dom.Cfg.V.Type.BLOCK)
                             .sideEffect(GremlinUtils.setNodeId())
@@ -281,168 +248,65 @@ public class ControlFlowAnalysis {
                             .<Vertex>select("newCfgBlock")
                             .next();
 
-                            // cfgBlock -> newBlock
-                        g.V(syntaxBlock).outE(Dom.SEM)
-                        .has(Dom.Sem.ORD, 
-                             i < intervals.size() - 1 ? P.between(intervals.get(i), intervals.get(i + 1))
-                                                      : P.gte(intervals.get(i)))
-                        .has(Dom.Sem.ROLE, Dom.Sem.Role.Control.STATEMENT).inV()
-//                        .addE(Dom.CFG).from(__.V(cfgBlock))
-                        .addE(Dom.CFG).from(__.V(newBlock))
-                        .property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.STATEMENT)
-                        .sideEffect(GremlinUtils.setEdgeOrd())
-                        .iterate();
+                        // possible gremlin bug: i tried to add the edges in bulk, but for some reason this made it recreate the statement vertices 
+                        while(!stack.isEmpty())
+                            g.V(stack.pop())                        
+                            .addE(Dom.CFG).from(__.V(newBlock))
+                            .property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.STATEMENT)
+                            .sideEffect(GremlinUtils.setEdgeOrd())
+                            .iterate();
 
-                        g.V(nestedSyn)
-                        .optional(
-                            __.outE(Dom.SEM).has(Dom.Sem.ROLE, Dom.Sem.Role.Control.RETURN).inV())
-                        .inE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC).outV()
-                        .addE(Dom.CFG).to(newBlock)
+                        if(latestContinuation != null)
+                            g.V(newBlock)
+                            .addE(Dom.CFG).to(__.V(latestContinuation))
+                            .property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.FLOW)
+                            .sideEffect(GremlinUtils.setEdgeOrd())
+                            .iterate();
+
+                        latestContinuation = newBlock;
+                        if(firstContinuation == null) 
+                            firstContinuation = latestContinuation;
+                    }
+
+                    if(latestContinuation != null)
+                        g.V(nestedReturnsCfg)
+                        .addE(Dom.CFG).to(__.V(latestContinuation))
                         .property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.FLOW)
                         .sideEffect(GremlinUtils.setEdgeOrd())
                         .iterate();
 
-                        lastCfgBlocks.clear();
-                        lastCfgBlocks.add(newBlock);
-                    }
+                    latestContinuation = nestedCfg;
+                    if(firstContinuation == null) 
+                        firstContinuation = latestContinuation;
+
+                } else {
+                    throw new IllegalStateException("unexpected role");
                 }
             }
-             
 
-       }
-
-       // TODO this is not working yet
-        // reprashing:
-        // - create the first cfg-block
-        // - create an empty stack of structures containing:
-        //   { an entry block, a set of exit blocks, an interval-start}
-        // - if there is a nest that is also a last, put { nested cfg-block, empty, ord }. 
-        // - otherwise, put { null, empty, ord of last statement }
-        // - go through the rest of the nests in reverse:
-        //   - if the stack-top entry is not null and the ord in the stack-top is consequtive to your ord, put { nested-cfg-block, returns of nested cfg-block, your-ord }
-        //   - if the stack-top entry is null or the ord in the stack-top is not consequtive to your ord, create a cfg-block and put {new-cfg-block, new-cfg-block, your-ord} 
-        //   - either way put {nested-cfg-block, returns-of-nested-cfg-block, your-ord}, 
-        // - finally put { first-cfg-block, first-cfg-block, 0}
-        //
-        // - now go through the stack, link the exits to the entries, and copy statements between your-ord and ord-of-top to the entry-block. 
-        //
-        // - note: we use the entry-block of the first-cfg block for adding statements to this block 
-        // - note: the exit blocks of the deepest element is always empty (and nowhereelse) 
-        // - note: in case of consequtive nests, the interval boundaries are consequtive so the interval empty, and so no block will be copied to the nested-cfg-block
-        // - note: in the normal case, the, the interval boundaries are the same number,  so the interval empty, and so no block will be copied to the nested-cfg-block
-       private static void alternative(GraphTraversalSource g, Vertex syntaxBlock, Vertex cfgBlock) {
-            Stack<Struct> stack = new Stack<>();
-
-            List<Edge> nests =
-                g.V(syntaxBlock)
-                .outE(Dom.SEM).has(Dom.Sem.ROLE, Dom.Sem.Role.Control.NEST)                
-                .order().by(Dom.Sem.ORD, Order.desc)
-                .toList();
-
-            boolean lastNestedIsLastStatement = false;
-            if(!nests.isEmpty()){
-                lastNestedIsLastStatement = 
-                    g.V(nests.get(0).inVertex()).inE(Dom.SEM).has(Dom.Sem.ROLE, Dom.Sem.Role.Control.LAST)
-                                .hasNext();
-            }
-
-            if(lastNestedIsLastStatement){
-                Edge lastNested = nests.remove(0);
-                stack.push(new Struct(
-                        lastNested.value(Dom.Sem.ORD),
-                        g.V(lastNested.inVertex())
-                        .inE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC).outV().next()));
-            } else {
-                // note: if nests.isEmpty, it will be 0L
-                long maxOrd = 
-                    (Long) g.V(syntaxBlock).coalesce(
-                                __.outE(Dom.SEM)
-                                  .has(Dom.Sem.ROLE, Dom.Sem.Role.Control.STATEMENT)
-                                  .values(Dom.Sem.ORD).max(),
-                                __.constant(0L))
-                             .next();
-                stack.push(new Struct(maxOrd, (Vertex) null));
-            }
-
-
-            for (Edge n : nests) {
-                Vertex nestedSyn = n.inVertex();
-                long ord = n.value(Dom.Sem.ORD);
-                Struct top = stack.firstElement();
-                if (top.entryBlock == null && top.intervalStart != ord + 1){
-
-                    Vertex newBlock = 
-                        g.addV(Dom.CFG).property(Dom.Cfg.V.TYPE, Dom.Cfg.V.Type.BLOCK)
-                        .sideEffect(GremlinUtils.setNodeId())
-                        .as("newCfgBlock")
-                        .addE(Dom.CFG).to(__.V(syntaxBlock))
-                        .property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC)
-                        .sideEffect(GremlinUtils.setEdgeOrd())
-                        .<Vertex>select("newCfgBlock")
-                        .next();
-
-                    stack.push( new Struct(ord, newBlock, newBlock));
-                }
-
-                Vertex nestedCfg = 
-                    g.V(nestedSyn)
-                     .inE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC).outV()
-                     .next();
-
-                Vertex[] nestedReturnsCfg = 
-                    g.V(nestedSyn)
-                     .optional(
-                     __.outE(Dom.SEM).has(Dom.Sem.ROLE, Dom.Sem.Role.Control.RETURN).inV())
-                     .inE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC).outV().toList()
-                     .toArray(new Vertex[0]);
-
-                stack.push( new Struct(ord, nestedCfg, nestedReturnsCfg));
-                
-            }
-
-            stack.push( new Struct(0, cfgBlock, cfgBlock));
-
-            while(true){
-                if(stack.isEmpty()) break; 
-                Struct current = stack.pop();
-                if(current.exitBlocks.isEmpty()) break;
-                Struct next = stack.firstElement();
-
-                if(next.entryBlock != null){
-                    for(Vertex ret : current.exitBlocks){
-                        g.V(ret)
-                        .addE(Dom.CFG).to(__.V(next.entryBlock))
-                        .property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.FLOW)
-                        .sideEffect(GremlinUtils.setEdgeOrd())
-                        .iterate();
-                    }
-                }
-
-                g.V(syntaxBlock).outE(Dom.SEM)
-                .has(Dom.Sem.ORD, P.between(current.intervalStart, next.intervalStart))
-                .has(Dom.Sem.ROLE, Dom.Sem.Role.Control.STATEMENT).inV()
-                .addE(Dom.CFG).from(__.V(current.entryBlock))
+            // possible gremlin bug: i tried to add the edges in bulk, but for some reason this made it recreate the statement vertices 
+            while(!stack.isEmpty())
+                g.V(stack.pop())                        
+                .addE(Dom.CFG).from(__.V(cfgBlock))
                 .property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.STATEMENT)
                 .sideEffect(GremlinUtils.setEdgeOrd())
                 .iterate();
 
-            }
+            if(latestContinuation != null)
+                g.V(cfgBlock)
+                .addE(Dom.CFG).to(__.V(latestContinuation))
+                .property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.FLOW)
+                .sideEffect(GremlinUtils.setEdgeOrd())
+                .iterate();
+            
+            if(firstContinuation != null)
+                g.V(cfgBlock)
+                .addE(Dom.CFG).to(__.V(firstContinuation))
+                .property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.CONTINUATION)
+                .sideEffect(GremlinUtils.setEdgeOrd())
+                .iterate();
        }
 
-       static class Struct {
-           long intervalStart;
-           Vertex entryBlock;
-           List<Vertex> exitBlocks;
-
-           public Struct(long intervalStart, Vertex entryBlock, Vertex... exitBlocks) {
-               this.intervalStart = intervalStart;
-               this.entryBlock = entryBlock;
-               this.exitBlocks = new LinkedList<>();
-               Collections.addAll(this.exitBlocks, exitBlocks);
-           }
-
-
-       }
 
        private static void analyseConditions(GraphTraversalSource g) {
             g.E().hasLabel(Dom.SEM)
@@ -463,30 +327,40 @@ public class ControlFlowAnalysis {
              .iterate();
         }
 
-        private static void analyseEntryExit(GraphTraversalSource g) {
+        private static void analyseEntry(GraphTraversalSource g) {
             g.E().hasLabel(Dom.SEM)
                  .has(Dom.Sem.ROLE, Dom.Sem.Role.Control.BODY).as("e")
 
                  // Identify entry and exit blocks of this control.
                  .<Edge>select("e").outV().inE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC).outV().as("cfgEntry")
-                 .inE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.EXIT).outV().as("cfgExit")
-
                  // Add edge from entry node to the cfg-block associated with the node pointed by the body-edge.
                  .<Edge>select("e").inV()
                  .inE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC).outV()
                  .addE(Dom.CFG).from("cfgEntry")
                  .property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.FLOW)
                  .sideEffect(GremlinUtils.setEdgeOrd())
-
-                 // Add edge to exit node from the cfg-block associated with the return node of the control.
-                 // Note that the return-edge always exists here (even if the body is a leaf block).
-                 .<Vertex>select("e").outV()
-                 .outE(Dom.SEM).has(Dom.Sem.ROLE, Dom.Sem.Role.Control.RETURN).inV()
-                 .inE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC).outV()
-                 .addE(Dom.CFG).to("cfgExit")
-                 .property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.FLOW)
-                 .sideEffect(GremlinUtils.setEdgeOrd())
                  .iterate();
+
         }
+
+        private static void analyseExit(GraphTraversalSource g) {
+
+            // Add edge to exit node from the cfg-block associated with the return node of the control.
+            // Note that the return-edge always exists here (even if the body is a leaf block).
+            g.E().hasLabel(Dom.SEM)
+             .has(Dom.Sem.ROLE, Dom.Sem.Role.Control.BODY).outV().as("decl")
+             .inE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC).outV() 
+             .outE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.CONTINUATION).inV().as("cfgExit")
+             .<Vertex>select("decl")
+             .outE(Dom.SEM).has(Dom.Sem.ROLE, Dom.Sem.Role.Control.RETURN).inV()
+             .map(__.inE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC)
+                 .order().by(Dom.Cfg.E.ORD, Order.desc)
+                 .limit(1))
+             .outV()
+             .addE(Dom.CFG).to("cfgExit")
+             .property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.FLOW)
+             .sideEffect(GremlinUtils.setEdgeOrd())
+             .iterate();
+    }
     }
 }

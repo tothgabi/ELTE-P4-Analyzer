@@ -349,9 +349,10 @@ public class SemanticAnalysis {
              .emit(__.has(Dom.Syn.V.CLASS, "BlockStatementContext"))
              .as("block")
              .local(
-                __.outE(Dom.SEM).has(Dom.Sem.ROLE, Dom.Sem.Role.Control.NEST)
-//                  .or(__.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.STATEMENT),
-//                      __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.NEST))
+                __.outE(Dom.SEM)
+                // .has(Dom.Sem.ROLE, Dom.Sem.Role.Control.NEST)
+                  .or(__.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.STATEMENT),
+                      __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.NEST))
              .order().by(Dom.Sem.ORD, Order.desc)
              .limit(1)
              .inV()
@@ -363,12 +364,13 @@ public class SemanticAnalysis {
         }
 
         // For each block that nests other blocks:
-        // Finds all those statements (or empty blocks) of a control definition 
-        // that can be the last statement of that control.
-        // Note that there can multiple potential last statements because of 
+        // Finds all those blocks of a control definition 
+        // that can be the last block of that control.
+        // Note that there can multiple potential last blocks because of 
         // conditionals.
         // This is a transitive closure of 'body', 'trueBranch', 'falseBranch',
-        // and 'last' edges
+        // and those 'last' edges that point to the nested block
+        // note: 'last' denotes the last position, so last can point to statements as well, but return only points to last blocks. (this way return is always a continuation, and can be used in control flow analysis.) 
         // IMPROVEMENT: not counting conditionals, this is now polynomial time but it could be linearized if higher nodes reused the return statements of their last-nodes.
         private static void findReturnStatements(GraphTraversalSource g) {
 
@@ -389,15 +391,15 @@ public class SemanticAnalysis {
                                 .or(__.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.BODY),
                                     __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.TRUE_BRANCH),
                                     __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.FALSE_BRANCH),
-                                    __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.LAST)))
+                                    __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.LAST).inV().inE(Dom.SEM).has(Dom.Sem.ROLE, Dom.Sem.Role.Control.NEST)))
                         .inV())
                 .until(__.outE(Dom.SEM).has(Dom.Sem.DOMAIN, Dom.Sem.Domain.CONTROL)
                         .or(__.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.BODY),
                             __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.TRUE_BRANCH),
                             __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.FALSE_BRANCH),
-                            __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.LAST))
+                            __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.LAST)
+                              .inV().inE(Dom.SEM).has(Dom.Sem.ROLE, Dom.Sem.Role.Control.NEST))
                         .count().is(0))
-
                 .addE(Dom.SEM).from("controlRoot")
                 .property(Dom.Sem.DOMAIN, Dom.Sem.Domain.CONTROL)
                 .property(Dom.Sem.ROLE, Dom.Sem.Role.Control.RETURN)

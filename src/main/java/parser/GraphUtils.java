@@ -102,24 +102,32 @@ public class GraphUtils {
         try {
             graphmlPath = toGraphML(graph, name);
 
-            if(exts.contains(Extension.GRAPH_ML))
+            if(exts.contains(Extension.GRAPH_ML)){
                 ret.put(Extension.GRAPH_ML, graphmlPath);
+                System.out.println(String.format("\"%s\" created.", graphmlPath.toString()));
+            }
             
-            if(max.ord <= Extension.DOT.ord) return ret;
+            if(max.ord < Extension.GRAPH_ML.ord) return ret;
 
             dotPath = toDot(graph, name, graphmlPath);
-            if(exts.contains(Extension.DOT))
+            if(exts.contains(Extension.DOT)){
                 ret.put(Extension.DOT, dotPath);
+                System.out.println(String.format("\"%s\" created.", dotPath.toString()));
+            }
+
+            if(max.ord <= Extension.DOT.ord) return ret;
 
             if(exts.contains(Extension.SVG)){
                 Path svgPath = graphviz(graph, name, dotPath, Extension.SVG);
                 ret.put(Extension.SVG, svgPath);
+                System.out.println(String.format("\"%s\" created.", svgPath.toString()));
                 Desktop.getDesktop().open(svgPath.toFile());
             }
 
             if(exts.contains(Extension.PDF)){
                 Path pdfPath = graphviz(graph, name, dotPath, Extension.PDF);
                 ret.put(Extension.PDF, pdfPath);
+                System.out.println(String.format("\"%s\" created.", pdfPath.toString()));
                 Desktop.getDesktop().open(pdfPath.toFile());
             }
 
@@ -127,7 +135,7 @@ public class GraphUtils {
             if(!exts.contains(Extension.GRAPH_ML)){
                 graphmlPath.toFile().delete();
             }
-            if(!exts.contains(Extension.DOT)){
+            if(max.ord > Extension.DOT.ord && !exts.contains(Extension.DOT)){
                 dotPath.toFile().delete();
             }
         }
@@ -145,6 +153,7 @@ public class GraphUtils {
   private static Path toGraphML(Graph graph, String name) throws IOException {
     Path graphmlPath = Files.createTempFile(name, ".xml");
     graph.traversal().io(graphmlPath.toString()).with(IO.writer, IO.graphml).write().iterate();
+
     return graphmlPath;
   }
 
