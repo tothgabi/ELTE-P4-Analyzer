@@ -121,7 +121,7 @@ public class ControlFlowAnalysis {
             .as("finalCf")
             .select("synParser")
             .inE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC).outV()
-            .inE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.CONTINUATION).outV()
+            .outE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.CONTINUATION).inV()
             .addE(Dom.CFG).from("finalCf")
             .property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.FLOW).sideEffect(GremlinUtils.setEdgeOrd())
             .iterate();
@@ -146,7 +146,7 @@ public class ControlFlowAnalysis {
     static class Control { 
         private static void analyse(GraphTraversalSource g) {
             // We traverse the hierarchical syntax tree to create a control flow graph.
-            // The two core idea for this is that:
+            // The two core ideas for this are:
             // - A list of nested blocks can processed into a cfg if know where the nested blocks end (not trivial, because nested blocks themselves can be nesting blocks or conditionals): we just chain the cfg-block associated with the return point of any nested-block to the cfg-block associated with the start of the subsequent nested-block.
             // - Nested blocks are always below nesting blocks in the syntax tree: going in leaf-to-root direction, we can be assured that nested blocks are already fully processed (there is a state  associated with their return point).
             // Additionally, if a block contains both nested blocks and statements, we need to create further cfg-blocks in the chain for this block to contain the statements.
