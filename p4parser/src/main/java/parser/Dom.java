@@ -3,6 +3,7 @@ public class Dom {
    public static final String SYN="syn";
    public static final String SEM="sem";
    public static final String CFG="cfg";
+   public static final String CALL = "call";
 
    public static class Syn {
     public static class E {
@@ -31,7 +32,7 @@ public class Dom {
             public static final String ASSOC="assoc";
             public static final String STATEMENT="statement";
             public static final String ENTRY="entry";
-            public static final String CONTINUATION="continuation";
+            public static final String RETURN="return";
         }
     }
 
@@ -74,6 +75,7 @@ public class Dom {
 				public static final String FALSE_BRANCH = "falseBranch";
 				public static final String RETURN = "return";
 				public static final String LAST = "last";
+				public static final String FORK = "fork";
             }
             public static class Parser {
                 public static final String NAME ="name";

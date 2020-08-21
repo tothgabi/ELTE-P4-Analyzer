@@ -1,14 +1,19 @@
 package parser;
 
+import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.transform.TransformerException;
 
+import org.anarres.cpp.CppReader;
+import org.anarres.cpp.Preprocessor;
 import org.antlr.v4.gui.TreeViewer;
-import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.TokenStream;
@@ -19,41 +24,44 @@ import parser.GraphUtils.Label;
 import parser.p4.*;
 
 public class AntlrP4 {
+    // TODO formalize the analysis dependencies: https://github.com/j-easy/easy-flows
     public static void main(String[] args) throws IOException, ParserConfigurationException, TransformerException,
             InterruptedException {
 // use this line to generate P4Lexer class and P4Parser class along with the P4BaseVisitor class:
 //      org.antlr.v4.Tool.main(new String[]{"-visitor", "-o", "hmm/src/main/java/hmm/p4", "-package", "hmm.p4", "P4.g4"});
 
+//  // To parse without resolving includes:
+//        CharStream stream = CharStreams.fromFileName("ex1.p4");
+//        P4Lexer lexer  = new P4Lexer(stream);   
 
-        CharStream stream = CharStreams.fromFileName("ex1.p4");
-        P4Lexer lexer  = new P4Lexer(stream);   
+        // I use the C preprocessor to resolve includes. 
+        // JCPP-Antlr integration from here: https://stackoverflow.com/a/25358397
+        Preprocessor pp = new Preprocessor(new File("ex1.p4"));
+        List<String> systemInclude = new ArrayList<String>();
+        systemInclude.add(".");            
+        pp.setSystemIncludePath(systemInclude);
+
+        P4Lexer lexer = new P4Lexer(CharStreams.fromReader(new CppReader(pp)));
         TokenStream tokenStream = new CommonTokenStream(lexer);
         P4Parser parser = new P4Parser(tokenStream);
         
         ParseTree tree = parser.start();
- //show AST in console
-//        System.out.println(tree.toStringTree(parser));
+//        displayNativeAntlrTree(parser, tree);
+//        antlrParseTreeToXML(tree);
 
 
-        Graph graph =TinkerGraphParseTree.fromParseTree(tree, lexer.getVocabulary(), parser.getRuleNames());
+        Graph graph = TinkerGraphParseTree.fromParseTree(tree, lexer.getVocabulary(), parser.getRuleNames());
+        printSyntaxTree(graph);
+
+//        CallAnalysis.analyse(graph);
         SemanticAnalysis.analyse(graph);
-        ControlFlowAnalysis.analyse(graph);
+        printSemanticGraph(graph);
 
-       printSemanticGraph(graph);
-//        printSyntaxTree(graph);
+        ControlFlowAnalysis.analyse(graph);
         printCfg(graph);
 
-//        //show AST in GUI
-//        TreeViewer viewer = new TreeViewer(Arrays.asList(
-//                parser.getRuleNames()),tree);
-//                viewer.open();
-//
-//        XMLParseTree.toFile(XMLParseTree.fromParseTree(tree), "p4-antlr.xml", true);
-//
-//        Map<String, List<String>> res = tree.accept(new StateMachineVisitor());
-//        System.out.println(res);
-
     }
+
 
     public static void printSyntaxTree(Graph graph) throws IOException, TransformerException, InterruptedException {
         GraphUtils.printGraph(GraphUtils.subgraph(graph, Label.SYN), "proba", true, GraphUtils.Extension.SVG);
@@ -65,4 +73,17 @@ public class AntlrP4 {
         GraphUtils.printGraph(GraphUtils.subgraph(graph, Label.CFG), "proba", true, GraphUtils.Extension.SVG);
     }
 
+    private static void displayNativeAntlrTree(P4Parser parser, ParseTree tree) {
+        //show AST in GUI
+        TreeViewer viewer = new TreeViewer(
+            Arrays.asList(parser.getRuleNames()),tree);
+        viewer.open();
+
+        //show AST in console (LISP)
+        System.out.println(tree.toStringTree(parser));
+    }
+
+    private static void antlrParseTreeToXML(ParseTree tree) throws TransformerException, ParserConfigurationException {
+        XMLParseTree.toFile(XMLParseTree.fromParseTree(tree), "p4-antlr.xml", true);
+    }
 }

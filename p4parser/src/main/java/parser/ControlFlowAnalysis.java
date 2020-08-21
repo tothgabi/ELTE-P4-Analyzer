@@ -43,7 +43,7 @@ public class ControlFlowAnalysis {
         .property(Dom.Cfg.V.TYPE, Dom.Cfg.V.Type.ENTRY)
         .sideEffect(GremlinUtils.setNodeId())
         .as("entryCf")
-        .addE(Dom.CFG).to("entrySyn").property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC)
+        .addE(Dom.CFG).from("entrySyn").property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC)
         .sideEffect(GremlinUtils.setEdgeOrd())
         .select("entryCf")
         .addE(Dom.CFG)
@@ -54,7 +54,7 @@ public class ControlFlowAnalysis {
         .addE(Dom.CFG).to(__.addV(Dom.CFG)
                               .property(Dom.Cfg.V.TYPE, Dom.Cfg.V.Type.EXIT)
                               .sideEffect(GremlinUtils.setNodeId()))
-        .property(Dom.Cfg.E.ROLE,Dom.Cfg.E.Role.CONTINUATION)
+        .property(Dom.Cfg.E.ROLE,Dom.Cfg.E.Role.RETURN)
         .sideEffect(GremlinUtils.setEdgeOrd())
         .iterate();
     }
@@ -78,7 +78,7 @@ public class ControlFlowAnalysis {
             .addV(Dom.CFG).property(Dom.Cfg.V.TYPE, Dom.Cfg.V.Type.BLOCK)
             .sideEffect(GremlinUtils.setNodeId())
             .as("stateCf")
-            .addE(Dom.CFG).to("stateSyn")
+            .addE(Dom.CFG).from("stateSyn")
             .property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC)
             .sideEffect(GremlinUtils.setEdgeOrd())
             .select("stateCf")
@@ -94,9 +94,9 @@ public class ControlFlowAnalysis {
         private static void findStart(GraphTraversalSource g) {
             g.E().hasLabel(Dom.SEM).has(Dom.Sem.DOMAIN, Dom.Sem.Domain.TOP).has(Dom.Sem.ROLE, Dom.Sem.Role.Top.PARSER).inV()
             .<Vertex>project("entryCf", "startCf")
-            .by(__.inE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC).outV())
+            .by(__.outE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC).inV())
             .by(__.outE(Dom.SEM).has(Dom.Sem.DOMAIN, Dom.Sem.Domain.PARSER).has(Dom.Sem.ROLE, Dom.Sem.Role.Parser.START).inV()
-                .inE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC).outV())
+                .outE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC).inV())
             .addE(Dom.CFG)
             .from("entryCf").to("startCf")
             .property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.FLOW).sideEffect(GremlinUtils.setEdgeOrd())
@@ -106,8 +106,8 @@ public class ControlFlowAnalysis {
         private static void findTransitions(GraphTraversalSource g) {
             g.E().hasLabel(Dom.SEM).has(Dom.Sem.DOMAIN, Dom.Sem.Domain.PARSER).has(Dom.Sem.ROLE, Dom.Sem.Role.Parser.NEXT)
             .<Vertex>project("cfSource", "cfDest")
-            .by(__.outV().inE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC).outV())
-            .by(__.inV().inE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC).outV())
+            .by(__.outV().outE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC).inV())
+            .by(__.inV().outE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC).inV())
             .addE(Dom.CFG).from("cfSource").to("cfDest")
             .property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.FLOW).sideEffect(GremlinUtils.setEdgeOrd())
             .iterate();
@@ -117,11 +117,11 @@ public class ControlFlowAnalysis {
             g.E().hasLabel(Dom.SEM).has(Dom.Sem.DOMAIN, Dom.Sem.Domain.TOP).has(Dom.Sem.ROLE, Dom.Sem.Role.Top.PARSER).inV()
             .as("synParser")
             .outE(Dom.SEM).has(Dom.Sem.DOMAIN, Dom.Sem.Domain.PARSER).has(Dom.Sem.ROLE, Dom.Sem.Role.Parser.FINAL).inV()
-            .inE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC).outV()
+            .outE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC).inV()
             .as("finalCf")
             .select("synParser")
-            .inE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC).outV()
-            .outE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.CONTINUATION).inV()
+            .outE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC).inV()
+            .outE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.RETURN).inV()
             .addE(Dom.CFG).from("finalCf")
             .property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.FLOW).sideEffect(GremlinUtils.setEdgeOrd())
             .iterate();
@@ -134,7 +134,7 @@ public class ControlFlowAnalysis {
             .outE(Dom.SEM).has(Dom.Sem.DOMAIN, Dom.Sem.Domain.PARSER).has(Dom.Sem.ROLE, Dom.Sem.Role.Parser.STATEMENT).inV()
             .as("synStmt")
             .select("synState")
-            .inE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC).outV()
+            .outE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC).inV()
             .addE(Dom.CFG).to("synStmt")
             .property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.STATEMENT)
             .sideEffect(GremlinUtils.setEdgeOrd())
@@ -165,20 +165,24 @@ public class ControlFlowAnalysis {
                  .as("synNode")
                  .addV(Dom.CFG).property(Dom.Cfg.V.TYPE, Dom.Cfg.V.Type.BLOCK)
                  .sideEffect(GremlinUtils.setNodeId())
-                 .addE(Dom.CFG).to("synNode")
+                 .addE(Dom.CFG).from("synNode")
                  .property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC)
                  .sideEffect(GremlinUtils.setEdgeOrd())
                  .toList();
 
                 
             analyseEntry(g);
-            analyseConditions(g);
 
             for (Edge e : assocEdges) {
-                Vertex syntaxBlock = e.inVertex(); 
-                Vertex cfgBlock = e.outVertex();
+                Vertex syntaxBlock = e.outVertex(); 
+                Vertex cfgBlock = e.inVertex();
 
-                analyseNesting(g, syntaxBlock, cfgBlock);
+                if(syntaxBlock.value(Dom.Syn.V.CLASS).equals("ConditionalStatementContext")){
+                    analyseConditions(g, syntaxBlock, cfgBlock);
+
+                } else {
+                    analyseNesting(g, syntaxBlock, cfgBlock);
+                }
             }
              
             analyseExit(g);
@@ -199,9 +203,6 @@ public class ControlFlowAnalysis {
         // NOTE: For each syn-block, we possibly create multible cfg-blocks:
         // - Since we process the syn-block children in reverse order, the continuation cfg-block is the one created in the first iteration. This cfg-block needs to exist by the time we process the parent cfg-block. Processing syn-blocks of the syntax in bottom-to-top order satisfies this.
 
-        // TODO continuation-edges can be used instead of the current semantic return-edges and assocs. 
-        //      but this needs continuation-edges to be set up for conditional blocks as well.
-        //      which in turn requires conditional analysis to be put inside the loop (to guarantee the right processing order)
        private static void analyseNesting(GraphTraversalSource g, Vertex syntaxBlock, Vertex cfgBlock) {
 
             List<Edge> nestsAndStmts =
@@ -222,19 +223,14 @@ public class ControlFlowAnalysis {
                     Vertex nestedSyn = e.inVertex();
                     Vertex nestedCfg = 
                         g.V(nestedSyn)
-                        .inE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC).outV()
+                        .outE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC).inV()
                         .next();
 
-
                     Object[] nestedReturnsCfg = 
-                        g.V(nestedSyn)
-                        .optional(
-                        __.outE(Dom.SEM).has(Dom.Sem.ROLE, Dom.Sem.Role.Control.RETURN).inV())
-                        .map(__.inE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC)
-                               .order().by(Dom.Cfg.E.ORD, Order.desc)
-                               .limit(1))
-                        .outV().toList()
-                        .toArray();
+                        g.V(nestedCfg)
+                            .optional(
+                                __.outE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.RETURN).inV())
+                            .toList().toArray();
 
                     if(!stack.isEmpty()){
 
@@ -242,7 +238,7 @@ public class ControlFlowAnalysis {
                             g.addV(Dom.CFG).property(Dom.Cfg.V.TYPE, Dom.Cfg.V.Type.BLOCK)
                             .sideEffect(GremlinUtils.setNodeId())
                             .as("newCfgBlock")
-                            .addE(Dom.CFG).to(__.V(syntaxBlock))
+                            .addE(Dom.CFG).from(__.V(syntaxBlock))
                             .property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC)
                             .sideEffect(GremlinUtils.setEdgeOrd())
                             .<Vertex>select("newCfgBlock")
@@ -302,27 +298,39 @@ public class ControlFlowAnalysis {
             if(firstContinuation != null)
                 g.V(cfgBlock)
                 .addE(Dom.CFG).to(__.V(firstContinuation))
-                .property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.CONTINUATION)
+                .property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.RETURN)
                 .sideEffect(GremlinUtils.setEdgeOrd())
                 .iterate();
        }
 
 
-       private static void analyseConditions(GraphTraversalSource g) {
-            g.E().hasLabel(Dom.SEM)
+       private static void analyseConditions(GraphTraversalSource g, Vertex syntaxBlock, Vertex cfgBlock) {
+
+            // conditionals always have "nested" blocks so we always add conditionals
+            g.V(syntaxBlock).outE(Dom.SEM)
              .or(__.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.TRUE_BRANCH),
                  __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.FALSE_BRANCH))
              .as("e")
-             .outV()
-             .inE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC).outV()
-             .as("cfgHead")
-             .select("e").inV()
-             .inE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC).outV()
-             .addE(Dom.CFG).from("cfgHead")
+             .inV()
+                .map(__.outE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC)
+                    .order().by(Dom.Cfg.E.ORD, Order.asc).limit(1)
+                    .inV())
+             .as("cfgBranch")
+             .optional(
+                __.outE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.RETURN).inV())
+             .as("cfgBranchCont")
+
+             .V(cfgBlock)
+             .addE(Dom.CFG).to("cfgBranch")
              .property(Dom.Cfg.E.ROLE, 
                 __.choose(__.select("e").values(Dom.Sem.ROLE))
                   .option(Dom.Sem.Role.Control.TRUE_BRANCH, __.constant(Dom.Cfg.E.Role.TRUE_FLOW))
                   .option(Dom.Sem.Role.Control.FALSE_BRANCH, __.constant(Dom.Cfg.E.Role.FALSE_FLOW)))
+             .sideEffect(GremlinUtils.setEdgeOrd())
+
+             .V(cfgBlock)
+             .addE(Dom.CFG).to("cfgBranchCont")
+             .property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.RETURN)
              .sideEffect(GremlinUtils.setEdgeOrd())
              .iterate();
         }
@@ -332,10 +340,10 @@ public class ControlFlowAnalysis {
                  .has(Dom.Sem.ROLE, Dom.Sem.Role.Control.BODY).as("e")
 
                  // Identify entry and exit blocks of this control.
-                 .<Edge>select("e").outV().inE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC).outV().as("cfgEntry")
+                 .<Edge>select("e").outV().outE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC).inV().as("cfgEntry")
                  // Add edge from entry node to the cfg-block associated with the node pointed by the body-edge.
                  .<Edge>select("e").inV()
-                 .inE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC).outV()
+                 .outE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC).inV()
                  .addE(Dom.CFG).from("cfgEntry")
                  .property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.FLOW)
                  .sideEffect(GremlinUtils.setEdgeOrd())
@@ -349,14 +357,14 @@ public class ControlFlowAnalysis {
             // Note that the return-edge always exists here (even if the body is a leaf block).
             g.E().hasLabel(Dom.SEM)
              .has(Dom.Sem.ROLE, Dom.Sem.Role.Control.BODY).outV().as("decl")
-             .inE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC).outV() 
-             .outE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.CONTINUATION).inV().as("cfgExit")
+             .outE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC).inV() 
+             .outE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.RETURN).inV().as("cfgExit")
              .<Vertex>select("decl")
              .outE(Dom.SEM).has(Dom.Sem.ROLE, Dom.Sem.Role.Control.RETURN).inV()
-             .map(__.inE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC)
+             .map(__.outE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC)
                  .order().by(Dom.Cfg.E.ORD, Order.desc)
                  .limit(1))
-             .outV()
+             .inV()
              .addE(Dom.CFG).to("cfgExit")
              .property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.FLOW)
              .sideEffect(GremlinUtils.setEdgeOrd())

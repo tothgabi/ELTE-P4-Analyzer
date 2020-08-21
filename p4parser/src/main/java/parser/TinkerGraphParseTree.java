@@ -53,6 +53,7 @@ public class TinkerGraphParseTree {
             str = str.replaceAll(">", "\\\\>");
             str = str.replaceAll("\\{", "\\\\{");
             str = str.replaceAll("\\}", "\\\\}");
+            str = str.replaceAll("\"", "\\\\\"");
             return str;
         }
 

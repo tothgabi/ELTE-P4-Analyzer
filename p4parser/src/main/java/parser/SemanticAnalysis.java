@@ -366,7 +366,7 @@ public class SemanticAnalysis {
         // For each block that nests other blocks:
         // Finds all those blocks of a control definition 
         // that can be the last block of that control.
-        // Note that there can multiple potential last blocks because of 
+        // Note that there can be multiple potential last blocks because of 
         // conditionals.
         // This is a transitive closure of 'body', 'trueBranch', 'falseBranch',
         // and those 'last' edges that point to the nested block

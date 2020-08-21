@@ -131,13 +131,14 @@ public class GraphUtils {
                 Desktop.getDesktop().open(pdfPath.toFile());
             }
 
-        } finally {
+            // don't delete it if there is an exception, because it can be useful
             if(!exts.contains(Extension.GRAPH_ML)){
                 graphmlPath.toFile().delete();
             }
             if(max.ord > Extension.DOT.ord && !exts.contains(Extension.DOT)){
                 dotPath.toFile().delete();
             }
+        } finally {
         }
 
         return ret;
