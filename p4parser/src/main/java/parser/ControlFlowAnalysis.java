@@ -352,23 +352,33 @@ public class ControlFlowAnalysis {
         }
 
         private static void analyseExit(GraphTraversalSource g) {
+            // NOTE this was originally one query. for some reason Gremlin "as" stopped working there, but  decomposition circumvented the bug.
 
             // Add edge to exit node from the cfg-block associated with the return node of the control.
             // Note that the return-edge always exists here (even if the body is a leaf block).
-            g.E().hasLabel(Dom.SEM)
-             .has(Dom.Sem.ROLE, Dom.Sem.Role.Control.BODY).outV().as("decl")
-             .outE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC).inV() 
-             .outE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.RETURN).inV().as("cfgExit")
-             .<Vertex>select("decl")
-             .outE(Dom.SEM).has(Dom.Sem.ROLE, Dom.Sem.Role.Control.RETURN).inV()
-             .map(__.outE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC)
-                 .order().by(Dom.Cfg.E.ORD, Order.desc)
-                 .limit(1))
-             .inV()
-             .addE(Dom.CFG).to("cfgExit")
-             .property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.FLOW)
-             .sideEffect(GremlinUtils.setEdgeOrd())
-             .iterate();
-    }
+            List<Vertex> decls = 
+                g.E().hasLabel(Dom.SEM)
+                .has(Dom.Sem.ROLE, Dom.Sem.Role.Control.BODY).outV()
+                .toList();
+
+            for (Vertex d : decls) {
+                Vertex cfgExit  =
+                    g.V(d)
+                    .outE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC).inV() 
+                    .outE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.RETURN).inV()
+                    .next();
+
+                g.V(d)
+                .outE(Dom.SEM).has(Dom.Sem.ROLE, Dom.Sem.Role.Control.RETURN).inV()
+                .map(__.outE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC)
+                    .order().by(Dom.Cfg.E.ORD, Order.desc)
+                    .limit(1))
+                .inV()
+                .addE(Dom.CFG).to(__.V(cfgExit))
+                .property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.FLOW)
+                .sideEffect(GremlinUtils.setEdgeOrd())
+                .iterate();
+            }
+        }
     }
 }

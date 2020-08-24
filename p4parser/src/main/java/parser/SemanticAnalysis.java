@@ -20,6 +20,8 @@ public class SemanticAnalysis {
         Parser.analyse(g);
         Control.analyse(g);
         Instantiation.analyse(g);
+
+        Symbol.analyse(g);
     }
 
     private static class Parser {
@@ -489,6 +491,69 @@ public class SemanticAnalysis {
                  .property(Dom.Sem.DOMAIN, Dom.Sem.Domain.INSTANTIATION).property(Dom.Sem.ROLE, Dom.Sem.Role.Instantiation.INVOKES)
                  .sideEffect(GremlinUtils.setEdgeOrd())
                  .iterate();
+            }
+        }
+    }
+
+    public static class Symbol {
+        public static void analyse(GraphTraversalSource g){
+            resolveNames(g);
+            resolveTypeRefs(g);
+        }
+
+        public static void resolveNames(GraphTraversalSource g){
+            g.V().hasLabel(Dom.SYN)
+            .or(__.has(Dom.Syn.V.CLASS, "HeaderTypeDeclarationContext"),
+                __.has(Dom.Syn.V.CLASS, "ExternDeclarationContext"),
+                __.has(Dom.Syn.V.CLASS, "StructTypeDeclarationContext"),
+                __.has(Dom.Syn.V.CLASS, "StructFieldContext"),
+                __.has(Dom.Syn.V.CLASS, "ParameterContext"))
+            .as("root")
+            .outE(Dom.SYN)
+            .or(__.has(Dom.Syn.E.RULE, "name"),
+                __.has(Dom.Syn.E.RULE, "nonTypeName"))
+            .inV()
+            .repeat(__.out())
+            .until(__.has(Dom.Syn.V.CLASS, "TerminalNodeImpl"))
+            .addE(Dom.SEM).from("root")
+            .property(Dom.Sem.DOMAIN, Dom.Sem.Domain.SYMBOL)
+            .property(Dom.Sem.ROLE, Dom.Sem.Role.Symbol.NAME_REF)
+            .sideEffect(GremlinUtils.setEdgeOrd())
+            .iterate();
+
+        }
+
+        // TODO typeRefs can be prefixed
+        public static void resolveTypeRefs(GraphTraversalSource g){
+            List<Vertex> typedExprs = 
+                g.E().hasLabel(Dom.SYN).has(Dom.Syn.E.RULE, "typeRef")
+                .filter(__.inV().outE(Dom.SYN).has(Dom.Syn.E.RULE, "typeName")) // NOTE this may be empty
+                .outV()
+                .toList();
+
+            for (Vertex typedExpr : typedExprs) {
+                String typeName = 
+                    g.V(typedExpr)
+                    .outE(Dom.SYN).has(Dom.Syn.E.RULE, "typeRef").inV() 
+                    .outE(Dom.SYN).has(Dom.Syn.E.RULE, "typeName").inV() // not empty
+                    .repeat(__.out())
+                    .until(__.has(Dom.Syn.V.CLASS, "TerminalNodeImpl"))
+                    .values("value").map(t -> t.get().toString())
+                    .next();
+
+                // send an edge from each typeRef to the each type declarations
+                g.V().hasLabel(Dom.SYN)
+                .or(__.has(Dom.Syn.V.CLASS, "HeaderTypeDeclarationContext"),
+                    __.has(Dom.Syn.V.CLASS, "ExternDeclarationContext"),
+                    __.has(Dom.Syn.V.CLASS, "StructTypeDeclarationContext"))
+                .filter(__.outE(Dom.SEM).has(Dom.Sem.ROLE, Dom.Sem.Role.Symbol.NAME_REF)
+                          .inV().values("value").is(typeName))
+                .addE(Dom.SEM).from(__.V(typedExpr))
+                .property(Dom.Sem.DOMAIN, Dom.Sem.Domain.SYMBOL)
+                .property(Dom.Sem.ROLE, Dom.Sem.Role.Symbol.TYPE_REF)
+                .sideEffect(GremlinUtils.setEdgeOrd())
+                .toList();
+
             }
         }
     }
