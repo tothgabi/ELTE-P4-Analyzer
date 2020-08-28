@@ -14,18 +14,21 @@ import java.util.stream.Collectors;
 import org.apache.tinkerpop.gremlin.process.traversal.Order;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.Scope;
+import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalSideEffects;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.process.traversal.step.TraversalOptionParent.Pick;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.BulkSet;
+import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 
 public class ControlFlowAnalysis {
+
     public static void analyse(Graph graph) {
         GraphTraversalSource g = graph.traversal();
         GremlinUtils.initializeNodeIds(graph, Dom.CFG);
@@ -33,12 +36,13 @@ public class ControlFlowAnalysis {
 
         findEntryExit(g);
         Parser.analyse(g);
-        Control.analyse(g);
-//        Control2.analyseInQueryForm(g);
+//        Control.analyse(g);
+        Control2.analyseInQueryForm(g);
     }
 
     // TODO it is pointless to extract this here. move its relevant parts to the
-    // respective domain.
+    // respective domains.
+
     // Finds top-level parser and control declarations.
     // Creates a corresponding entry block in the CFG and links it to the
     // declaration.
@@ -128,6 +132,8 @@ public class ControlFlowAnalysis {
 
         }
     }
+
+    // NOTE There is probably a simpler algorithm since all we do is iterating over the block-leaves and statements in the syntax tree in depth-first order. The problem is keeping track of statements (there can be statements between blocks and we need a separate cfg node for them), and keeping track of nesting (this is only useful if need to reconstruct the syntax tree from the cfg).
 
     static class Control {
         private static void analyse(GraphTraversalSource g) {
@@ -348,37 +354,42 @@ public class ControlFlowAnalysis {
             // 'aggregate' instead of stack, and whenever a nest or last is found, we print
             // it and clear it
 
-            System.out.println(
             g.E().hasLabel(Dom.SEM)
                 .or(__.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.BODY),
                     __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.NEST),
                     __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.TRUE_BRANCH),
                     __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.FALSE_BRANCH))
-                .order().by(Dom.Syn.E.ORD, Order.desc)
+                .inV()
+                .order().by(Dom.Syn.V.NODE_ID, Order.desc)
                 .map(subCfgs())
-                .toList());
-
-                // find body-edges and the cfg-entry associated to the source
-                g.E().has(Dom.Sem.ROLE, Dom.Sem.Role.Control.BODY)
-                .as("e").outV().outE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC).inV()
-                .as("cfgEntry")
-
-                // find the cfg-entry associated to the target
-                .select("e")
-                .inV().outE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC).inV()
-
-                // link the two cfg-entries
-                .addE(Dom.CFG).from("cfgEntry")
-                .property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.FLOW)
-                .sideEffect(GremlinUtils.setEdgeOrd())
                 .iterate();
+
+            // find body-edges and the cfg-entry associated to the source
+            g.E().has(Dom.Sem.ROLE, Dom.Sem.Role.Control.BODY)
+            .as("e").outV().outE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC).inV()
+            .as("cfgEntry")
+
+            // find the first cfg-block associated to the target
+            .select("e").inV()
+            .outE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC).inV().as("cfgBlock")
+
+            // link the entry to block
+            .addE(Dom.CFG).from("cfgEntry")
+            .property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.FLOW)
+            .sideEffect(GremlinUtils.setEdgeOrd())
+
+            // link the exit to the return points of the cfg
+            .select("cfgBlock")
+            .optional(__.outE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.RETURN).inV())
+            .addE(Dom.CFG).to(__.select("cfgEntry").outE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.RETURN).inV())
+            .property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.FLOW)
+            .iterate();
 
         }
 
-        private static GraphTraversal<Edge, Vertex> subCfgs() {
+        private static GraphTraversal<Vertex, Vertex> subCfgs() {
             return 
-                __.inV()
-                  .as("synB") 
+                __.<Vertex>identity().as("synB") 
                // create a sub-CFG entry and send an assoc-edge
                   .addV(Dom.CFG).as("cfgB")
 
@@ -390,80 +401,116 @@ public class ControlFlowAnalysis {
 
                 // process edges of synB
 
-                  .select("synB") 
-                  .<Edge, Long>choose(__.values(Dom.Syn.V.CLASS))
-                  .option("ConditionalStatementContext", cond())
-                  .option("BlockStatementContext", nest())
-                  .option(Pick.none, __.identity().constant(0L))
+                  .<Vertex>select("synB") 
 
-                  .select("cfgB");
+                  .sideEffect(
+                    __.choose(__.values(Dom.Syn.V.CLASS))
+                      .option("ConditionalStatementContext", cond())
+                      .option("BlockStatementContext", nest())
+                      .option(Pick.none, __.identity().none()))
+                  .select("cfgB")
+                  
+                  ;
         }
-        private static GraphTraversal<Vertex, Long> nest() {
+        private static Traversal<Vertex, Object> nest() {
 
             return 
 
                 __.<Vertex>identity()
+
+                .aggregate("S").sideEffect(t -> ((BulkSet<Vertex>) t.sideEffects("S")).clear()) // initialize S
+                .aggregate("p").sideEffect(t -> ((BulkSet<Vertex>) t.sideEffects("p")).clear()) // initialize p
+
                 // go through the nests and statements of the node. 
                 // if you encounter a statement, put it in the stack.
                 // if you encounter a nest, process it (incl. the statements in the stack) and clear the stack.
-
-                .aggregate("S").sideEffect(t -> ((BulkSet) t.sideEffects("S")).clear()) // initialize S
-                .aggregate("p").sideEffect(t -> ((BulkSet) t.sideEffects("p")).clear()) // initialize p
-
                 .outE(Dom.SEM)
                 .or(__.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.NEST),
                     __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.STATEMENT))
                 .order().by(Dom.Sem.ORD, Order.desc)
+                 
+                .sideEffect(
+                  __
+                    .choose(__.values(Dom.Sem.ROLE))
+                    .option(Dom.Sem.Role.Control.STATEMENT, 
+                            __.inV().aggregate("S"))
 
-                .choose(__.values(Dom.Sem.ROLE))
-                .option(Dom.Sem.Role.Control.STATEMENT, 
-                        __.inV().aggregate("S").constant(0))
-                .option(Dom.Sem.Role.Control.NEST, 
-                        __.sideEffect(t -> System.out.println(t.sideEffects("S").toString()))
-                          .sideEffect(innerNest())
-                          .sideEffect(t -> ((BulkSet) t.sideEffects("S")).clear())
-                          .constant(0))
-                .constant(0L);
+                    .option(Dom.Sem.Role.Control.NEST, 
+                            __.inV()
+    //                          .sideEffect(t -> System.out.println((BulkSet) t.sideEffects("S")))
+                            .sideEffect(innerNest())
+                            .sideEffect(t -> ((BulkSet<Vertex>) t.sideEffects("S")).clear()))
+                    .option(Pick.none, __.inV()))
+
+                .tail(1)
+                .sideEffect(
+                    __.flatMap(__.cap("p").unfold()).addE(Dom.CFG).from("cfgB")
+                    .property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.FLOW)
+                    .sideEffect(GremlinUtils.setEdgeOrd()))
+                .sideEffect(
+                    __.flatMap(__.cap("S").unfold()).addE(Dom.CFG).from("cfgB")
+                    .property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.STATEMENT)
+                    .sideEffect(GremlinUtils.setEdgeOrd()))
+
+                .map(t -> (Object) t.get())
+                .none();
         }
         
-        private static GraphTraversal<Edge, Edge> innerNest() {
+        private static Traversal<Vertex, Object> innerNest() {
           return
-              __.inV().outE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC).inV()
+                .outE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC).inV()
                 .as("n")
-                .choose(
-                    __.cap("S").map(t -> ((BulkSet) t.get()).isEmpty()),
-                    emptyStack(),
-                    nonEmptyStack());
+
+                .sideEffect(
+                    __.<Vertex>identity().choose(
+                        __.cap("S").unfold(), // true when S is not empty
+                        nonEmptyStack(),
+                        emptyStack()))
+                .sideEffect(t -> ((BulkSet<Vertex>) t.sideEffects("p")).clear())
+                .aggregate("p")
+                .map(t -> (Object) t.get()).none();
         }
 
-        private static GraphTraversal<Vertex, Edge> emptyStack(){
+        private static Traversal<Vertex, Object> emptyStack(){
             // empty stack means unprocessed statements
             return 
-            __.choose(
-                __.cap("p").map(t -> ((BulkSet) t.get()).isEmpty()),
-                // if p wasn't set yet (this is the rightmost nest), then the return point(s) of the nest (or if no rp, then the nest itself) will be our return point(s) as well
-                __.select("n")
-                  .optional(__.outE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.RETURN).inV())
-                  .addE(Dom.CFG).from("cfgB")
-                  .property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.RETURN)
-                  .sideEffect(GremlinUtils.setEdgeOrd()), 
+            __.<Vertex>identity()
+              .choose(
+                __.cap("p").unfold(), // true when p is not empty
                   
                 // if p was set (this is not the rightmost nest), then send a flow edge from the return point(s) of this nest to the previously processed nest
                 __.select("n")
                   .optional(__.outE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.RETURN).inV())
                   .addE(Dom.CFG).to(__.cap("p").unfold())
                   .property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.FLOW)
-                  .sideEffect(GremlinUtils.setEdgeOrd()));
+                  .sideEffect(GremlinUtils.setEdgeOrd()),
+                  
+                // if p wasn't set yet (this is the rightmost nest), then the return point(s) of the nest (or if no rp, then the nest itself) will be our return point(s) as well
+                __.select("n")
+                  .optional(__.outE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.RETURN).inV())
+                  .addE(Dom.CFG).from("cfgB")
+                  .property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.RETURN)
+                  .sideEffect(GremlinUtils.setEdgeOrd())) 
+
+              .map(t -> (Object) t.get() )
+              .none();
         }
 
-        private static GraphTraversal<Vertex, Edge> nonEmptyStack(){
+        private static Traversal<Vertex, Object> nonEmptyStack(){
           return
-          __.<Vertex>addV(Dom.CFG).as("newB")
+          __.<Vertex>identity()
+
+            .addV(Dom.CFG).as("newB")
+            .property(Dom.Cfg.V.TYPE, Dom.Cfg.V.Type.BLOCK)
+            .sideEffect(GremlinUtils.setNodeId())
+
             // add unprocessed statements to newB
-            .sideEffect(__.cap("S").unfold()
-                          .addE(Dom.CFG).from("newB")
-                          .property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.STATEMENT)
-                          .sideEffect(GremlinUtils.setEdgeOrd()))
+            .sideEffect(
+                // note: unfold() loses reference to newB, flatMap circumvents this
+                __.flatMap(__.cap("S").unfold()).addE(Dom.CFG).from("newB") 
+                  .property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.STATEMENT)
+                  .sideEffect(GremlinUtils.setEdgeOrd()))
+
             // send flow from the return point(s) of the nest to newB
             .sideEffect(__.select("n")
                           .optional(__.outE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.RETURN).inV())
@@ -471,39 +518,49 @@ public class ControlFlowAnalysis {
                           .property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.FLOW)
                           .sideEffect(GremlinUtils.setEdgeOrd()))
             .choose(
-              __.cap("p").map(t -> ((BulkSet) t.get()).isEmpty()),
+              __.cap("p").unfold(), // true when p is not empty
 
-            // if p wasn't set yet (this is the rightmost nest), then our return point will be newB
-              __.addE(Dom.CFG).from("cfgB")
-                .property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.RETURN)
-                .sideEffect(GremlinUtils.setEdgeOrd()),
-            // if p was set (this is not the rightmost nest), then send a flow edge from newB to the previously processed nest
+              // if p was set (this is not the rightmost nest), then send a flow edge from newB to the previously processed nest
               __.addE(Dom.CFG).to(__.cap("p").unfold())
                 .property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.FLOW)
-                .sideEffect(GremlinUtils.setEdgeOrd()));
+                .sideEffect(GremlinUtils.setEdgeOrd()),
+                
+              // if p wasn't set yet (this is the rightmost nest), then our return point will be newB
+              __.addE(Dom.CFG).from("cfgB")
+                .property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.RETURN)
+                .sideEffect(GremlinUtils.setEdgeOrd()))
+            .map(t -> (Object) t.get() ).none();
 
         }
 
-        private static GraphTraversal<Vertex, Long> cond() {
-            return __.outE(Dom.SEM)
-                     .or(__.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.TRUE_BRANCH),
-                            __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.FALSE_BRANCH))
+        private static Traversal<Vertex, Object> cond() {
+            return 
+                  __.outE(Dom.SEM)
+                    .or(__.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.TRUE_BRANCH),
+                           __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.FALSE_BRANCH))
                     .as("e").inV()
-                    .map(__.outE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC).order().by(Dom.Cfg.E.ORD, Order.asc).limit(1).inV())
-                    .as("cfgBranch").optional(__.outE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.RETURN).inV())
+
+                    .map(__.outE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC)
+                           .order().by(Dom.Cfg.E.ORD, Order.asc)
+                           .limit(1).inV())
+                    .as("cfgBranch")
+                    .optional(__.outE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.RETURN).inV())
                     .as("cfgBranchCont")
 
-                    .sideEffect(t -> System.out.println("x"))
-                    .select("cfgB").addE(Dom.CFG).to("cfgBranch")
+                    .<Vertex>select("cfgB")
+                    .addE(Dom.CFG).to("cfgBranch")
                     .property(Dom.Cfg.E.ROLE,
                             __.choose(__.select("e").values(Dom.Sem.ROLE))
                                     .option(Dom.Sem.Role.Control.TRUE_BRANCH, __.constant(Dom.Cfg.E.Role.TRUE_FLOW))
                                     .option(Dom.Sem.Role.Control.FALSE_BRANCH, __.constant(Dom.Cfg.E.Role.FALSE_FLOW)))
                     .sideEffect(GremlinUtils.setEdgeOrd())
 
-                    .select("cfgB").addE(Dom.CFG).to("cfgBranchCont").property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.RETURN)
+                    .<Vertex>select("cfgB")
+                    .addE(Dom.CFG).to("cfgBranchCont").property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.RETURN)
                     .sideEffect(GremlinUtils.setEdgeOrd())
-                    .constant(0L);
+
+                    .map(t -> (Object) t.get())
+                    .none();
         }
     }
 }
