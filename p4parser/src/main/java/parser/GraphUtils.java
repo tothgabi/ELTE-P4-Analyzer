@@ -40,8 +40,9 @@ import java.util.stream.Stream;
 
 public class GraphUtils {
 
+    // TODO this is redundant. eliminate it and use the names in Dom
     public static enum Label {
-        SYN, CFG, SEM
+        SYN, CFG, SEM, SYMBOL
     }
     
     public static enum Extension {

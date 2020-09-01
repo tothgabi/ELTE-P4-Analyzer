@@ -1,9 +1,16 @@
 package parser;
+
+// TODO the semantic domain is redundant. the subdomains should have abstract edges (e.g. call, reference, name). it is not important what is the type of the elements these connect (control, parser, instance subdomains should be eliminated. or maybe a new subdomain should be introduced to denote these)  
+// TODO remove subdomains from semantic analysis. each subdomain concerns the whole language so they are pointless.
+
+// TODO make edge names into meaningful verbs
 public class Dom {
    public static final String SYN="syn";
    public static final String SEM="sem";
    public static final String CFG="cfg";
    public static final String CALL = "call";
+   public static final String SYMBOL = "symbol";
+   public static final String STRUCT = "struct";
 
    public static class Syn {
     public static class E {
@@ -40,7 +47,7 @@ public class Dom {
         public static final String TYPE="type";
 
         public static class Type {
-            public static final String BLOCK="block";
+            public static final String BLOCK="block"; // used in imperative algorithm
             public static final String ENTRY="entry";
             public static final String EXIT="exit";
         }
@@ -95,6 +102,32 @@ public class Dom {
                 public static final String INVOKES ="invokes";
                 public static final String TYPE ="type";
             }
+
+        }
+   }
+
+   public static class Symbol  {
+        public static final String ROLE="role";
+        public static final String ORD="ord";
+
+        public static class Role {
+            public static final String REFERS_TO ="refersTo";
+            public static final String HAS_TYPE ="hasType";
+            public static final String DECLARES_NAME ="declaresName";
+            public static final String SCOPES ="scopes";
+        }
+   }
+
+   public static class Struct {
+        public static final String ROLE="role";
+        public static final String ORD="ord";
+
+        public static class Role {
+
+            public static final String TABLE = "table";
+            public static final String ACTION = "action";
+//            public static final String STRUCT_FIELD = "structField";
+//            public static final String PARAMETER = "parameter";
         }
    }
 }

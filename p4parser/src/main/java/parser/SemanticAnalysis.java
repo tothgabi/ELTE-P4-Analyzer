@@ -499,6 +499,8 @@ public class SemanticAnalysis {
         public static void analyse(GraphTraversalSource g){
             resolveNames(g);
             resolveTypeRefs(g);
+            localScope(g);
+            parameterScope(g);
         }
 
         public static void resolveNames(GraphTraversalSource g){
@@ -507,6 +509,9 @@ public class SemanticAnalysis {
                 __.has(Dom.Syn.V.CLASS, "ExternDeclarationContext"),
                 __.has(Dom.Syn.V.CLASS, "StructTypeDeclarationContext"),
                 __.has(Dom.Syn.V.CLASS, "StructFieldContext"),
+                __.has(Dom.Syn.V.CLASS, "VariableDeclarationContext"),
+                __.has(Dom.Syn.V.CLASS, "ConstantDeclarationContext"),
+                __.has(Dom.Syn.V.CLASS, "TableDeclarationContext"),
                 __.has(Dom.Syn.V.CLASS, "ParameterContext"))
             .as("root")
             .outE(Dom.SYN)
@@ -515,9 +520,8 @@ public class SemanticAnalysis {
             .inV()
             .repeat(__.out())
             .until(__.has(Dom.Syn.V.CLASS, "TerminalNodeImpl"))
-            .addE(Dom.SEM).from("root")
-            .property(Dom.Sem.DOMAIN, Dom.Sem.Domain.SYMBOL)
-            .property(Dom.Sem.ROLE, Dom.Sem.Role.Symbol.NAME_REF)
+            .addE(Dom.SYMBOL).from("root")
+            .property(Dom.Symbol.ROLE, Dom.Symbol.Role.DECLARES_NAME)
             .sideEffect(GremlinUtils.setEdgeOrd())
             .iterate();
 
@@ -525,37 +529,148 @@ public class SemanticAnalysis {
 
         // TODO typeRefs can be prefixed
         public static void resolveTypeRefs(GraphTraversalSource g){
-            List<Vertex> typedExprs = 
-                g.E().hasLabel(Dom.SYN).has(Dom.Syn.E.RULE, "typeRef")
-                .filter(__.inV().outE(Dom.SYN).has(Dom.Syn.E.RULE, "typeName")) // NOTE this may be empty
-                .outV()
-                .toList();
+            g.E().hasLabel(Dom.SYN).has(Dom.Syn.E.RULE, "typeRef").as("e")
+            .outV().as("typedExpr")
+            .select("e")
+            .inV().outE(Dom.SYN).has(Dom.Syn.E.RULE, "typeName").inV() 
 
-            for (Vertex typedExpr : typedExprs) {
-                String typeName = 
-                    g.V(typedExpr)
-                    .outE(Dom.SYN).has(Dom.Syn.E.RULE, "typeRef").inV() 
-                    .outE(Dom.SYN).has(Dom.Syn.E.RULE, "typeName").inV() // not empty
-                    .repeat(__.out())
-                    .until(__.has(Dom.Syn.V.CLASS, "TerminalNodeImpl"))
-                    .values("value").map(t -> t.get().toString())
-                    .next();
+            .repeat(__.out())
+            .until(__.has(Dom.Syn.V.CLASS, "TerminalNodeImpl"))
 
-                // send an edge from each typeRef to the each type declarations
-                g.V().hasLabel(Dom.SYN)
-                .or(__.has(Dom.Syn.V.CLASS, "HeaderTypeDeclarationContext"),
-                    __.has(Dom.Syn.V.CLASS, "ExternDeclarationContext"),
-                    __.has(Dom.Syn.V.CLASS, "StructTypeDeclarationContext"))
-                .filter(__.outE(Dom.SEM).has(Dom.Sem.ROLE, Dom.Sem.Role.Symbol.NAME_REF)
-                          .inV().values("value").is(typeName))
-                .addE(Dom.SEM).from(__.V(typedExpr))
-                .property(Dom.Sem.DOMAIN, Dom.Sem.Domain.SYMBOL)
-                .property(Dom.Sem.ROLE, Dom.Sem.Role.Symbol.TYPE_REF)
-                .sideEffect(GremlinUtils.setEdgeOrd())
-                .toList();
+            .addE(Dom.SYMBOL).from("typedExpr")
+            .property(Dom.Symbol.ROLE, Dom.Symbol.Role.HAS_TYPE)
+            .sideEffect(GremlinUtils.setEdgeOrd())
+            .iterate();
 
-            }
+            g.E().hasLabel(Dom.SYMBOL)
+             .has(Dom.Symbol.ROLE, Dom.Symbol.Role.HAS_TYPE).inV()
+             .as("typeNameNode")
+             .values("value").as("typeName")
+
+             .V().hasLabel(Dom.SYN)
+             .or(__.has(Dom.Syn.V.CLASS, "HeaderTypeDeclarationContext"),
+                 __.has(Dom.Syn.V.CLASS, "ExternDeclarationContext"),
+                 __.has(Dom.Syn.V.CLASS, "VariableDeclarationContext"),
+                 __.has(Dom.Syn.V.CLASS, "ConstantDeclarationContext"),
+                 __.has(Dom.Syn.V.CLASS, "StructTypeDeclarationContext")) 
+
+             .filter(__.outE(Dom.SYMBOL).has(Dom.Sem.ROLE, Dom.Symbol.Role.DECLARES_NAME)
+                       .inV().values("value").where(P.eq("typeName")))
+             .addE(Dom.SYMBOL).from("typeNameNode")
+             .property(Dom.Symbol.ROLE, Dom.Symbol.Role.REFERS_TO)
+             .sideEffect(GremlinUtils.setEdgeOrd())
+             .iterate();
+        }
+
+        // subproblems: 
+        // - prefixed names
+        // - local scopes
+        // - indirect references (this requires dataflow)
+
+        // TODO prefixed names can introduce bugs
+        // - e.g. local declaration of 'x' will scope struct fields names 'x' (in case they are used)
+        // - not sure, but probably prefixed names can be omitted altogether 
+        public static void localScope(GraphTraversalSource g){
+            // inside a block, all statements to the right of the declaration are in the scope (until the end of the block)
+
+            // select variable or constant declarations and their names
+            g.V().hasLabel(Dom.SYN)
+             .or(__.has(Dom.Syn.V.CLASS, "VariableDeclarationContext"),
+                 __.has(Dom.Syn.V.CLASS, "ConstantDeclarationContext"))
+             .as("decl")
+             .outE(Dom.SYMBOL).has(Dom.Symbol.ROLE, Dom.Symbol.Role.DECLARES_NAME).inV()
+             .values("value")
+             .as("declaredName")
+
+            // select matching terminals inside the block after the declaration
+            // NOTE: the syntax tree contains the statements list reversed (rightmost in code is topmost in tree)
+            // - go up until the list-node of the declaration (to omit it for collection)
+             .<Vertex>select("decl")
+             .repeat(__.in(Dom.SYN))
+             .until(__.has(Dom.Syn.V.CLASS, "StatOrDeclListContext"))
+
+             // - keep going up and collect the list-nodes
+             .repeat(__.in(Dom.SYN))
+             .until(__.has(Dom.Syn.V.CLASS, "BlockStatementContext"))
+             .emit(__.has(Dom.Syn.V.CLASS, "StatOrDeclListContext"))
+             .outE().has(Dom.Syn.E.RULE, "statementOrDeclaration").inV()
+
+             // - collect matching terminals under each list-node subtree
+             .repeat(__.out(Dom.SYN))
+             .emit(__.has(Dom.Syn.V.CLASS, "TerminalNodeImpl")
+                     .values("value")
+                     .where(P.eq("declaredName")))
+             .dedup()
+
+             .addE(Dom.SYMBOL).from("decl")
+             .property(Dom.Symbol.ROLE, Dom.Symbol.Role.SCOPES)
+             .sideEffect(GremlinUtils.setEdgeOrd())
+             .iterate();
+        }
+
+        // TODO is there variable covering? (e.g. action parameters cover control parameters?)
+        // - if yes, start adding edges from the bottom, and don't add new edges to those who already have one
+        public static void parameterScope(GraphTraversalSource g){
+            g.V().hasLabel(Dom.SYN).has(Dom.Syn.V.CLASS, "ParameterContext")
+             .as("decl")
+             .outE(Dom.SYMBOL).has(Dom.Symbol.ROLE, Dom.Symbol.Role.DECLARES_NAME).inV()
+             .values("value")
+             .as("declaredName")
+             .<Vertex>select("decl")
+
+             .repeat(__.in(Dom.SYN))
+             .until(__.or(__.has(Dom.Syn.V.CLASS, "ParserDeclarationContext"),
+                          __.has(Dom.Syn.V.CLASS, "ControlDeclarationContext"),
+                          __.has(Dom.Syn.V.CLASS, "ActionDeclarationContext")))
+
+             .outE(Dom.SYN)
+             .or(__.has(Dom.Syn.E.RULE, "parserLocalElements"),
+                 __.has(Dom.Syn.E.RULE, "parserStates"),
+                 __.has(Dom.Syn.E.RULE, "controlLocalDeclarations"),
+                 __.has(Dom.Syn.E.RULE, "controlBody"),
+                 __.has(Dom.Syn.E.RULE, "blockStatement")) // action
+             .inV()
+             .repeat(__.out(Dom.SYN))
+             .emit(__.has(Dom.Syn.V.CLASS, "TerminalNodeImpl")
+                     .values("value")
+                     .where(P.eq("declaredName")))
+             .dedup()
+
+             .addE(Dom.SYMBOL).from("decl")
+             .property(Dom.Symbol.ROLE, Dom.Symbol.Role.SCOPES)
+             .sideEffect(GremlinUtils.setEdgeOrd())
+             .iterate();
+
         }
     }
+
+// // not sure if useful
+//    public static class Structure {
+//        public static void analyse(GraphTraversalSource g){
+//            controlTables(g);
+//        }
+//        public static void controlTables(GraphTraversalSource g){
+//            g.V().hasLabel(Dom.SYN)
+//             .has(Dom.Syn.V.CLASS, "ControlDeclarationContext").as("ctl")
+//             .repeat(__.outE(Dom.SYN)
+//                       .has(Dom.Syn.E.RULE, "controlLocalDeclarations").inV())
+//             .emit(__.has(Dom.Syn.V.CLASS,"TableDeclarationContext"))
+//             .addE(Dom.STRUCT).from("ctl")
+//             .property(Dom.Struct.ROLE, Dom.Struct.Role.TABLE)
+//             .sideEffect(GremlinUtils.setEdgeOrd())
+//             .iterate();
+//        }
+//        public static void controlActions(GraphTraversalSource g){
+//            g.V().hasLabel(Dom.SYN)
+//             .has(Dom.Syn.V.CLASS, "ControlDeclarationContext").as("ctl")
+//             .repeat(__.outE(Dom.SYN)
+//                       .has(Dom.Syn.E.RULE, "controlLocalDeclarations").inV())
+//             .emit(__.has(Dom.Syn.V.CLASS,"ActionDeclarationContext"))
+//             .addE(Dom.STRUCT).from("ctl")
+//             .property(Dom.Struct.ROLE, Dom.Struct.Role.ACTION)
+//             .sideEffect(GremlinUtils.setEdgeOrd())
+//             .iterate();
+//        }
+//    }
 
 }

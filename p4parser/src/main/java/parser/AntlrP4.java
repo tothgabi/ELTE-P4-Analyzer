@@ -34,8 +34,9 @@ public class AntlrP4 {
 //        CharStream stream = CharStreams.fromFileName("ex1.p4");
 //        P4Lexer lexer  = new P4Lexer(stream);   
 
-        // I use the C preprocessor to resolve includes. 
+        // Using C preprocessor to resolve includes. 
         // JCPP-Antlr integration from here: https://stackoverflow.com/a/25358397
+        // Note that includes are huge, they slow down everything, and many things can be analysed without them.
         Preprocessor pp = new Preprocessor(new File("ex1.p4"));
         List<String> systemInclude = new ArrayList<String>();
         systemInclude.add(".");            
@@ -51,14 +52,15 @@ public class AntlrP4 {
 
 
         Graph graph = TinkerGraphParseTree.fromParseTree(tree, lexer.getVocabulary(), parser.getRuleNames());
-        printSyntaxTree(graph);
+//        printSyntaxTree(graph);
 
-//        CallAnalysis.analyse(graph);
+        CallAnalysis.analyse(graph);
         SemanticAnalysis.analyse(graph);
-        printSemanticGraph(graph);
+//        printSemanticGraph(graph);
+        printStructSymbol(graph);
 
         ControlFlowAnalysis.analyse(graph);
-        printCfg(graph);
+//        printCfg(graph);
 
     }
 
@@ -71,6 +73,9 @@ public class AntlrP4 {
     }
     public static void printCfg(Graph graph) throws IOException, TransformerException, InterruptedException {
         GraphUtils.printGraph(GraphUtils.subgraph(graph, Label.CFG), "proba", true, GraphUtils.Extension.SVG);
+    }
+    public static void printStructSymbol(Graph graph) throws IOException, TransformerException, InterruptedException {
+        GraphUtils.printGraph(GraphUtils.subgraph(graph, Label.SYMBOL, Label.STRUCT), "proba", true, GraphUtils.Extension.SVG);
     }
 
     private static void displayNativeAntlrTree(P4Parser parser, ParseTree tree) {
