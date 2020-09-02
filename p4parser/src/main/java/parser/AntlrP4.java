@@ -75,7 +75,7 @@ public class AntlrP4 {
         GraphUtils.printGraph(GraphUtils.subgraph(graph, Label.CFG), "proba", true, GraphUtils.Extension.SVG);
     }
     public static void printStructSymbol(Graph graph) throws IOException, TransformerException, InterruptedException {
-        GraphUtils.printGraph(GraphUtils.subgraph(graph, Label.SYMBOL, Label.STRUCT), "proba", true, GraphUtils.Extension.SVG);
+        GraphUtils.printGraph(GraphUtils.subgraph(graph, Label.SYMBOL), "proba", true, GraphUtils.Extension.SVG);
     }
 
     private static void displayNativeAntlrTree(P4Parser parser, ParseTree tree) {
