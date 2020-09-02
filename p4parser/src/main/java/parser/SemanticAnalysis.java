@@ -4,6 +4,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.tinkerpop.gremlin.process.traversal.Operator;
 import org.apache.tinkerpop.gremlin.process.traversal.Order;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
@@ -12,6 +13,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.TraversalOptionParent
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.apache.tinkerpop.gremlin.process.traversal.step.util.BulkSet;
 
 public class SemanticAnalysis {
     
@@ -501,6 +503,7 @@ public class SemanticAnalysis {
             resolveTypeRefs(g);
             localScope(g);
             parameterScope(g);
+            fieldAndMethodScope(g);
         }
 
         public static void resolveNames(GraphTraversalSource g){
@@ -512,6 +515,7 @@ public class SemanticAnalysis {
                 __.has(Dom.Syn.V.CLASS, "VariableDeclarationContext"),
                 __.has(Dom.Syn.V.CLASS, "ConstantDeclarationContext"),
                 __.has(Dom.Syn.V.CLASS, "TableDeclarationContext"),
+                __.has(Dom.Syn.V.CLASS, "FunctionPrototypeContext"),
                 __.has(Dom.Syn.V.CLASS, "ParameterContext"))
             .as("root")
             .outE(Dom.SYN)
@@ -640,14 +644,109 @@ public class SemanticAnalysis {
              .property(Dom.Symbol.ROLE, Dom.Symbol.Role.SCOPES)
              .sideEffect(GremlinUtils.setEdgeOrd())
              .iterate();
+        }
 
+        // TODO there are probably field and method refs other than lvalue as well. (e.g. in expressions)
+        // TODO mark_to_drop is an extern function prototype without an enclosing extern. set its scope too!
+        @SuppressWarnings("unchecked")
+        public static void fieldAndMethodScope(GraphTraversalSource g){
+        // NOTE: possible gremlin bug: this was originally one query, but for some reason a select kept losing a variable
+
+            List<Map<String, Object>> lvArities =
+                g.V().hasLabel(Dom.SYN)
+                    // select top-most lvalue elements (i.e. those whose lvalue parent has no lvalue parent)
+                    .has(Dom.Syn.V.CLASS, "LvalueContext")
+                    .filter(__.inE(Dom.SYN).has(Dom.Syn.E.RULE, "lvalue").outV()
+                            .inE(Dom.SYN).has(Dom.Syn.E.RULE, "lvalue")
+                            .count().is(0))
+                    .as("lv")
+
+                    // in case this is a method call, find out the arity (otherwise this will return 0)
+                    .map(__.inE(Dom.SYN).has(Dom.Syn.E.RULE, "lvalue").outV()
+                            .outE(Dom.SYN).has(Dom.Syn.E.RULE, "argumentList").inV()
+                            .repeat(__.outE(Dom.SYN).has(Dom.Syn.E.RULE, "nonEmptyArgList").inV())
+                            .emit()
+                            .count())
+                    .map(t -> (Long) t.get())
+                    .as("arity")
+                    .select("lv", "arity")
+                    .toList();
+
+            // process the lvalue chains
+            for(Map<String, Object> lvArity : lvArities){
+                Vertex lv = (Vertex) lvArity.get("lv");
+                Long arity = (Long) lvArity.get("arity");
+
+                // collect each element in the chain. the chain must be reversed, but fold() cannot be used, because it forgets the arity variable, so as a workaround we go to the bottom and go to the up while collecting the elements
+                g.V(lv)
+
+                .emit()
+                .repeat(__.outE(Dom.SYN).has(Dom.Syn.E.RULE, "lvalue").inV())
+                .fold().map(t -> { List<Vertex> vs = t.get(); Collections.reverse(vs); return vs;}).unfold()
+
+                .<Vertex>coalesce(
+
+                    // for the first element: find out which declaration scopes the name, and find its type. store it. (we don't add new edges here, since the scope is already set for this element)
+                    __.outE(Dom.SYN).has(Dom.Syn.E.RULE, "prefixedNonTypeName").inV()
+                    .repeat(__.out(Dom.SYN))
+                    .until(__.has(Dom.Syn.V.CLASS, "TerminalNodeImpl"))
+                    .inE(Dom.SYMBOL).has(Dom.Symbol.ROLE, "scopes").outV()
+                    .outE(Dom.SYMBOL).has(Dom.Symbol.ROLE, "hasType").inV()
+                    .outE(Dom.SYMBOL).has(Dom.Symbol.ROLE, "refersTo").inV()
+                    .aggregate("currentType"),
+
+                    // for every element other than the first:
+                    __.outE(Dom.SYN).has(Dom.Syn.E.RULE, "name").inV()
+
+                        // find the name in use
+                        .repeat(__.out(Dom.SYN))
+                        .until(__.has(Dom.Syn.V.CLASS, "TerminalNodeImpl"))
+                        .as("useNode")
+                        .values("value")
+                        .as("useName")
+
+                        // load the current context (struct, extern)
+                        .flatMap(__.cap("currentType").<Vertex>unfold()) // unfold loses the name, but flatmap prevents it
+
+                        // find the field and method declaration that declares the name (and has the right arity). add the use into the scope of the declaration.
+                        .repeat(__.out(Dom.SYN))
+                        .until(
+                            __.or(__.has(Dom.Syn.V.CLASS, "StructFieldContext"),
+                                    __.has(Dom.Syn.V.CLASS, "FunctionPrototypeContext"))
+                                .as("declaration")
+                                // match name
+                                .outE(Dom.SYMBOL).has(Dom.Symbol.ROLE, Dom.Symbol.Role.DECLARES_NAME).inV()
+                                .values("value")
+                                .where(P.eq("useName"))
+
+                                // match arity
+                                .select("declaration")
+                                .outE(Dom.SYN).has(Dom.Syn.E.RULE, "parameterList").inV()
+                                .map(__.repeat(__.outE(Dom.SYN).has(Dom.Syn.E.RULE, "nonEmptyParameterList").inV())
+                                    .emit()
+                                    .count())
+                                .is(P.eq(arity))
+                                )
+                        .sideEffect(
+                            __.addE(Dom.SYMBOL).to("useNode")
+                                .property(Dom.Symbol.ROLE, Dom.Symbol.Role.SCOPES)
+                                .sideEffect(GremlinUtils.setEdgeOrd()))
+
+                        // in case the type of the declaration was found before, make the type declaration the current context.
+                        .outE(Dom.SYMBOL).has(Dom.Symbol.ROLE, Dom.Symbol.Role.HAS_TYPE).inV()
+                        .outE(Dom.SYMBOL).has(Dom.Symbol.ROLE, Dom.Symbol.Role.REFERS_TO).inV()
+                        .sideEffect(t -> { ((BulkSet<Vertex>) t.sideEffects("currentType")).clear(); } )
+                        .aggregate("currentType"))
+                .iterate();
+            }
         }
     }
 
-// // not sure if useful
+ // not sure if useful
 //    public static class Structure {
 //        public static void analyse(GraphTraversalSource g){
-//            controlTables(g);
+//
+//
 //        }
 //        public static void controlTables(GraphTraversalSource g){
 //            g.V().hasLabel(Dom.SYN)

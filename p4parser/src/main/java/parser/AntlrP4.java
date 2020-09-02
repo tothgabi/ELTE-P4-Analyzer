@@ -54,7 +54,7 @@ public class AntlrP4 {
         Graph graph = TinkerGraphParseTree.fromParseTree(tree, lexer.getVocabulary(), parser.getRuleNames());
 //        printSyntaxTree(graph);
 
-        CallAnalysis.analyse(graph);
+//        CallAnalysis.analyse(graph);
         SemanticAnalysis.analyse(graph);
 //        printSemanticGraph(graph);
         printStructSymbol(graph);
