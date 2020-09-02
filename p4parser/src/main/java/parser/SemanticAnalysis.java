@@ -15,6 +15,7 @@ import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.BulkSet;
 
+// TODO idea: method that execute queries should be named questions (whoUsesDeclaredVariable)
 public class SemanticAnalysis {
     
     public static void analyse(Graph graph){
@@ -24,6 +25,9 @@ public class SemanticAnalysis {
         Instantiation.analyse(g);
 
         Symbol.analyse(g);
+
+        Call.analyse(g);
+
     }
 
     private static class Parser {
@@ -504,6 +508,8 @@ public class SemanticAnalysis {
             localScope(g);
             parameterScope(g);
             fieldAndMethodScope(g);
+            actionRefs(g);
+            tableApps(g);
         }
 
         public static void resolveNames(GraphTraversalSource g){
@@ -516,6 +522,8 @@ public class SemanticAnalysis {
                 __.has(Dom.Syn.V.CLASS, "ConstantDeclarationContext"),
                 __.has(Dom.Syn.V.CLASS, "TableDeclarationContext"),
                 __.has(Dom.Syn.V.CLASS, "FunctionPrototypeContext"),
+                __.has(Dom.Syn.V.CLASS, "ActionDeclarationContext"),
+                __.has(Dom.Syn.V.CLASS, "TableDeclarationContext"),
                 __.has(Dom.Syn.V.CLASS, "ParameterContext"))
             .as("root")
             .outE(Dom.SYN)
@@ -532,6 +540,7 @@ public class SemanticAnalysis {
         }
 
         // TODO typeRefs can be prefixed
+        // TODO REFERS_TO is redundant, it is the same as SCOPES, just the opposite direction
         public static void resolveTypeRefs(GraphTraversalSource g){
             g.E().hasLabel(Dom.SYN).has(Dom.Syn.E.RULE, "typeRef").as("e")
             .outV().as("typedExpr")
@@ -684,29 +693,35 @@ public class SemanticAnalysis {
                 .repeat(__.outE(Dom.SYN).has(Dom.Syn.E.RULE, "lvalue").inV())
                 .fold().map(t -> { List<Vertex> vs = t.get(); Collections.reverse(vs); return vs;}).unfold()
 
+                // the first (or the only) element is always "prefixedNonTypeName", the rest are "name"
+                .outE(Dom.SYN).or(__.has(Dom.Syn.E.RULE, "prefixedNonTypeName"), 
+                                  __.has(Dom.Syn.E.RULE, "name")).inV()
+                .repeat(__.out(Dom.SYN))
+                .until(__.has(Dom.Syn.V.CLASS, "TerminalNodeImpl"))
                 .<Vertex>coalesce(
 
-                    // for the first element: find out which declaration scopes the name, and find its type. store it. (we don't add new edges here, since the scope is already set for this element)
-                    __.outE(Dom.SYN).has(Dom.Syn.E.RULE, "prefixedNonTypeName").inV()
-                    .repeat(__.out(Dom.SYN))
-                    .until(__.has(Dom.Syn.V.CLASS, "TerminalNodeImpl"))
-                    .inE(Dom.SYMBOL).has(Dom.Symbol.ROLE, "scopes").outV()
-                    .outE(Dom.SYMBOL).has(Dom.Symbol.ROLE, "hasType").inV()
-                    .outE(Dom.SYMBOL).has(Dom.Symbol.ROLE, "refersTo").inV()
-                    .aggregate("currentType"),
+                    // if an element already has a scope, set the current context to the enclosing type of the declaration 
+                    // - e.g. in "hdr.ipv4.ttl" the hdr can be scoped by paramater, we need its type to resolve which field scopes ipv4
+                    __.inE(Dom.SYMBOL).has(Dom.Symbol.ROLE, Dom.Symbol.Role.SCOPES).outV()
+                       .outE(Dom.SYMBOL).has(Dom.Symbol.ROLE, Dom.Symbol.Role.HAS_TYPE).inV()
+                       .outE(Dom.SYMBOL).has(Dom.Symbol.ROLE, Dom.Symbol.Role.REFERS_TO).inV()
+                       .aggregate("currentType"),
 
-                    // for every element other than the first:
-                    __.outE(Dom.SYN).has(Dom.Syn.E.RULE, "name").inV()
-
-                        // find the name in use
-                        .repeat(__.out(Dom.SYN))
-                        .until(__.has(Dom.Syn.V.CLASS, "TerminalNodeImpl"))
+                    // otherwise, resolve the scope (using the current context or the defaults), add an edge, and set the current context to the type of the declaration
+                    // - e.g. to process "ipv4" in "hdr.ipv4.ttl", we will search for the field with a matching name among the fields of whatever type "hdr" was
+                    // - e.g. in "mark_to_drop()" there is only one element and it is probably not scoped yet. we have to search for its name among the extern functions.
+                    __.identity()
+                        // store the name in use
                         .as("useNode")
                         .values("value")
                         .as("useName")
 
                         // load the current context (struct, extern)
-                        .flatMap(__.cap("currentType").<Vertex>unfold()) // unfold loses the name, but flatmap prevents it
+                        .coalesce(
+                        __.flatMap(__.cap("currentType").<Vertex>unfold()), // unfold loses the name, but flatmap prevents it
+                        __.V().hasLabel(Dom.SYN).has(Dom.Syn.V.CLASS, "ExternDeclarationContext")
+                              .filter(__.outE(Dom.SYN).has(Dom.Syn.E.RULE, "functionPrototype"))
+                        )
 
                         // find the field and method declaration that declares the name (and has the right arity). add the use into the scope of the declaration.
                         .repeat(__.out(Dom.SYN))
@@ -737,8 +752,156 @@ public class SemanticAnalysis {
                         .outE(Dom.SYMBOL).has(Dom.Symbol.ROLE, Dom.Symbol.Role.REFERS_TO).inV()
                         .sideEffect(t -> { ((BulkSet<Vertex>) t.sideEffects("currentType")).clear(); } )
                         .aggregate("currentType"))
+
                 .iterate();
             }
+        }
+
+        // TODO is it legal to refer to action in other namespaces?
+        public static void actionRefs(GraphTraversalSource g){
+            // from all table declarations
+            g.V().hasLabel(Dom.SYN)
+             .has(Dom.Syn.V.CLASS, "TableDeclarationContext")
+             .repeat(__.outE(Dom.SYN).has(Dom.Syn.E.RULE, "tablePropertyList").inV())
+             .emit()
+             .outE(Dom.SYN).has(Dom.Syn.E.RULE, "tableProperty").inV()
+
+            // select the name of each action action refs
+             .repeat(__.outE(Dom.SYN).has(Dom.Syn.E.RULE, "actionList").inV())
+             .emit()
+             .outE(Dom.SYN).has(Dom.Syn.E.RULE, "actionRef").inV()
+             .outE(Dom.SYN).has(Dom.Syn.E.RULE, "name").inV()
+
+             .repeat(__.out(Dom.SYN))
+             .until(__.has(Dom.Syn.V.CLASS, "TerminalNodeImpl"))
+             .as("actRef")
+             .values("value").as("actRefName")
+
+            // select those action declarations that declare the name of the currently selected action refs
+             .V().hasLabel(Dom.SYN).has(Dom.Syn.V.CLASS, "ActionDeclarationContext").as("decl")
+             .outE(Dom.SYMBOL).has(Dom.Symbol.ROLE, Dom.Symbol.Role.DECLARES_NAME).inV()
+             .values("value")
+             .where(P.eq("actRefName"))
+
+             .addE(Dom.SYMBOL).from("decl").to("actRef")
+             .property(Dom.Symbol.ROLE, Dom.Symbol.Role.SCOPES)
+             .sideEffect(GremlinUtils.setEdgeOrd())
+             .iterate();
+        }
+
+        // TODO can table names be in other namespaces?
+        public static void tableApps(GraphTraversalSource g){
+            g.V().hasLabel(Dom.SYN)
+             // select all table applications
+             .has(Dom.Syn.V.CLASS, "DirectApplicationContext")
+
+             // store the node and name of the applied table
+             .outE(Dom.SYN).has(Dom.Syn.E.RULE, "typeName").inV()
+             .repeat(__.out(Dom.SYN))
+             .until(__.has(Dom.Syn.V.CLASS, "TerminalNodeImpl")).as("tableRef")
+             .values("value").as("tableRefName")
+
+             // go up to the control declaration that contains the application
+             .<Vertex>select("tableRef")
+             .repeat(__.in(Dom.SYN))
+             .until(__.has(Dom.Syn.V.CLASS, "ControlDeclarationContext"))
+
+             // find the table declaration that declares the name of the applied table
+             .outE(Dom.SYN).has(Dom.Syn.E.RULE, "controlLocalDeclarations").inV()
+             .emit()
+             .repeat(__.outE(Dom.SYN).has(Dom.Syn.E.RULE, "controlLocalDeclarations").inV())
+             .outE(Dom.SYN).has(Dom.Syn.E.RULE, "controlLocalDeclaration").inV()
+             .outE(Dom.SYN).has(Dom.Syn.E.RULE, "tableDeclaration").inV().as("decl")
+
+             .outE(Dom.SYMBOL).has(Dom.Symbol.ROLE, Dom.Symbol.Role.DECLARES_NAME).inV()
+             .values("value")
+             .where(P.eq("tableRefName"))
+
+             // add edge from declaration to the name node 
+             .addE(Dom.SYMBOL).from("decl").to("tableRef")
+             .property(Dom.Symbol.ROLE, Dom.Symbol.Role.SCOPES)
+             .sideEffect(GremlinUtils.setEdgeOrd())
+             .iterate();
+
+        }
+    }
+
+    public static class Call {
+        public static void analyse(GraphTraversalSource g){
+            whoCallsAction(g);
+            whoCallsTable(g);
+            whoCallsFunctionPrototype(g);
+            whoCallsParserState(g);
+            whoInvokesParsersAndControls(g);
+        }
+        public static void whoCallsTable(GraphTraversalSource g){
+             g.V().hasLabel(Dom.SYN).has(Dom.Syn.V.CLASS, "TableDeclarationContext").as("decl")
+                  .flatMap(
+                    __.outE(Dom.SYMBOL).has(Dom.Symbol.ROLE, Dom.Symbol.Role.SCOPES).inV()
+                    .repeat(__.in())
+                    .until(__.has(Dom.Syn.V.CLASS, "ControlDeclarationContext"))
+                    .dedup())
+                  .addE(Dom.CALL).to("decl")
+                  .property(Dom.Call.ROLE, Dom.Call.Role.CALLS)
+                  .sideEffect(GremlinUtils.setEdgeOrd())
+                  .iterate();
+        }
+
+        public static void whoCallsAction(GraphTraversalSource g){
+             g.V().hasLabel(Dom.SYN).has(Dom.Syn.V.CLASS, "ActionDeclarationContext").as("decl")
+             .flatMap(
+                __.outE(Dom.SYMBOL).has(Dom.Symbol.ROLE, Dom.Symbol.Role.SCOPES).inV()
+                .repeat(__.in())
+                .until(__.has(Dom.Syn.V.CLASS, "TableDeclarationContext"))
+                .dedup())
+            .addE(Dom.CALL).to("decl")
+            .property(Dom.Call.ROLE, Dom.Call.Role.CALLS)
+            .sideEffect(GremlinUtils.setEdgeOrd())
+            .iterate();
+        }
+
+        public static void whoCallsFunctionPrototype(GraphTraversalSource g){
+             g.V().hasLabel(Dom.SYN).has(Dom.Syn.V.CLASS, "FunctionPrototypeContext").as("decl")
+             .flatMap(
+                __.outE(Dom.SYMBOL).has(Dom.Symbol.ROLE, Dom.Symbol.Role.SCOPES).inV()
+                .repeat(__.in())
+                .until(
+                    __.or(
+                        __.has(Dom.Syn.V.CLASS, "ControlDeclarationContext"),
+                        __.has(Dom.Syn.V.CLASS, "ParserDeclarationContext"),
+                        __.has(Dom.Syn.V.CLASS, "ActionDeclarationContext")))
+                .dedup())
+            .addE(Dom.CALL).to("decl")
+            .property(Dom.Call.ROLE, Dom.Call.Role.CALLS)
+            .sideEffect(GremlinUtils.setEdgeOrd())
+            .iterate();
+        }
+
+        public static void whoCallsParserState(GraphTraversalSource g){
+            g.V().hasLabel(Dom.SYN).has(Dom.Syn.V.CLASS, "ParserStateContext").as("st")
+             .flatMap(
+                __.repeat(__.in())
+                .until(__.has(Dom.Syn.V.CLASS, "ParserDeclarationContext"))
+                .dedup())
+             .addE(Dom.CALL).to("st")
+             .property(Dom.Call.ROLE, Dom.Call.Role.CALLS)
+             .sideEffect(GremlinUtils.setEdgeOrd())
+             .iterate();
+        }
+        public static void whoInvokesParsersAndControls(GraphTraversalSource g){
+            g.V().hasLabel(Dom.SYN)
+                 .or(__.has(Dom.Syn.V.CLASS, "ControlDeclarationContext"),
+                     __.has(Dom.Syn.V.CLASS, "ParserDeclarationContext")).as("invokee")
+                 .flatMap(
+                    __.inE(Dom.SEM).has(Dom.Sem.ROLE, Dom.Sem.Role.Instantiation.INVOKES).outV()
+                    .repeat(__.in())
+                    .until(__.has(Dom.Syn.V.CLASS, "InstantiationContext"))
+                    .dedup())
+                 .addE(Dom.CALL).to("invokee")
+                 .property(Dom.Call.ROLE, Dom.Call.Role.CALLS)
+                 .sideEffect(GremlinUtils.setEdgeOrd())
+                 .iterate();
+
         }
     }
 

@@ -130,4 +130,14 @@ public class Dom {
 //            public static final String PARAMETER = "parameter";
         }
    }
+
+   public static class Call {
+
+        public static final String ROLE="role";
+        public static final String ORD="ord";
+
+        public static class Role {
+            public static final String CALLS="calls";
+        }
+   }
 }

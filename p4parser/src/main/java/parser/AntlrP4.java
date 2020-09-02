@@ -54,10 +54,11 @@ public class AntlrP4 {
         Graph graph = TinkerGraphParseTree.fromParseTree(tree, lexer.getVocabulary(), parser.getRuleNames());
 //        printSyntaxTree(graph);
 
-//        CallAnalysis.analyse(graph);
         SemanticAnalysis.analyse(graph);
 //        printSemanticGraph(graph);
-        printStructSymbol(graph);
+
+//        printStructSymbol(graph);
+        printCalls(graph);
 
         ControlFlowAnalysis.analyse(graph);
 //        printCfg(graph);
@@ -77,6 +78,10 @@ public class AntlrP4 {
     public static void printStructSymbol(Graph graph) throws IOException, TransformerException, InterruptedException {
         GraphUtils.printGraph(GraphUtils.subgraph(graph, Label.SYMBOL), "proba", true, GraphUtils.Extension.SVG);
     }
+    public static void printCalls(Graph graph) throws IOException, TransformerException, InterruptedException {
+        GraphUtils.printGraph(GraphUtils.subgraph(graph, Label.CALL), "proba", true, GraphUtils.Extension.SVG);
+    }
+
 
     private static void displayNativeAntlrTree(P4Parser parser, ParseTree tree) {
         //show AST in GUI
