@@ -9,6 +9,7 @@ public class Dom {
    public static final String SEM="sem";
    public static final String CFG="cfg";
    public static final String CALL = "call";
+   public static final String SITES = "sites";
    public static final String SYMBOL = "symbol";
    public static final String STRUCT = "struct";
 
@@ -111,7 +112,6 @@ public class Dom {
         public static final String ORD="ord";
 
         public static class Role {
-            public static final String REFERS_TO ="refersTo";
             public static final String HAS_TYPE ="hasType";
             public static final String DECLARES_NAME ="declaresName";
             public static final String SCOPES ="scopes";
@@ -138,6 +138,20 @@ public class Dom {
 
         public static class Role {
             public static final String CALLS="calls";
+        }
+   }
+
+   public static class Sites {
+
+        public static final String ROLE="role";
+        public static final String ORD="ord";
+
+        public static class Role {
+            public static final String CALLS="calls";
+			public static final Object HAS_ARGUMENT = "hasArgument";
+			public static final Object HAS_PARAMETER = "hasParameter";
+			public static final Object INSTANTIATES = "instantiates";
+
         }
    }
 }

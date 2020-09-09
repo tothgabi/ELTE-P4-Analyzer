@@ -57,8 +57,9 @@ public class AntlrP4 {
         SemanticAnalysis.analyse(graph);
 //        printSemanticGraph(graph);
 
-//        printStructSymbol(graph);
-        printCalls(graph);
+//        printSymbol(graph);
+//        printCalls(graph);
+        printCallSites(graph);
 
         ControlFlowAnalysis.analyse(graph);
 //        printCfg(graph);
@@ -75,13 +76,15 @@ public class AntlrP4 {
     public static void printCfg(Graph graph) throws IOException, TransformerException, InterruptedException {
         GraphUtils.printGraph(GraphUtils.subgraph(graph, Label.CFG), "proba", true, GraphUtils.Extension.SVG);
     }
-    public static void printStructSymbol(Graph graph) throws IOException, TransformerException, InterruptedException {
+    public static void printSymbol(Graph graph) throws IOException, TransformerException, InterruptedException {
         GraphUtils.printGraph(GraphUtils.subgraph(graph, Label.SYMBOL), "proba", true, GraphUtils.Extension.SVG);
     }
     public static void printCalls(Graph graph) throws IOException, TransformerException, InterruptedException {
         GraphUtils.printGraph(GraphUtils.subgraph(graph, Label.CALL), "proba", true, GraphUtils.Extension.SVG);
     }
-
+    public static void printCallSites(Graph graph) throws IOException, TransformerException, InterruptedException {
+        GraphUtils.printGraph(GraphUtils.subgraph(graph, Label.SITES), "proba", true, GraphUtils.Extension.SVG);
+    }
 
     private static void displayNativeAntlrTree(P4Parser parser, ParseTree tree) {
         //show AST in GUI

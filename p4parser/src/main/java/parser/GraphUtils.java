@@ -42,7 +42,7 @@ public class GraphUtils {
 
     // TODO this is redundant. eliminate it and use the names in Dom
     public static enum Label {
-        SYN, CFG, SEM, SYMBOL, CALL
+        SYN, CFG, SEM, SYMBOL, CALL, SITES
     }
     
     public static enum Extension {

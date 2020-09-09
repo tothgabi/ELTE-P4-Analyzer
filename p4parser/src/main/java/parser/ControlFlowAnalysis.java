@@ -29,6 +29,8 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
 
 public class ControlFlowAnalysis {
 
+    // TODO 1-way conditionals produce partial CFG now. this should be handled either as a separate case, or by normalizing the syntax tree.
+    // TODO braceless conditionals are not handled now. normalize the syntax tree.
     public static void analyse(Graph graph) {
         GraphTraversalSource g = graph.traversal();
         GremlinUtils.initializeNodeIds(graph, Dom.CFG);
@@ -37,7 +39,7 @@ public class ControlFlowAnalysis {
         findEntryExit(g);
         Parser.analyse(g);
 //        Control.analyse(g);
-        Control2.analyseInQueryForm(g);
+       Control2.analyseInQueryForm(g);
     }
 
     // TODO it is pointless to extract this here. move its relevant parts to the
@@ -48,8 +50,15 @@ public class ControlFlowAnalysis {
     // declaration.
     // Also links the entry with the CFG root.
     private static void findEntryExit(GraphTraversalSource g) {
-        g.E().hasLabel(Dom.SEM).has(Dom.Sem.DOMAIN, Dom.Sem.Domain.TOP)
-                .or(__.has(Dom.Sem.ROLE, Dom.Sem.Role.Top.PARSER), __.has(Dom.Sem.ROLE, Dom.Sem.Role.Top.CONTROL)).inV()
+//        g.E().hasLabel(Dom.SEM).has(Dom.Sem.DOMAIN, Dom.Sem.Domain.TOP)
+//                .or(__.has(Dom.Sem.ROLE, Dom.Sem.Role.Top.PARSER), 
+//                    __.has(Dom.Sem.ROLE, Dom.Sem.Role.Top.CONTROL)).inV()
+          g.V().hasLabel(Dom.SYN)
+               .or(__.has(Dom.Syn.V.CLASS, "ControlDeclarationContext"),
+                   __.has(Dom.Syn.V.CLASS, "ParserDeclarationContext"),
+//                   __.has(Dom.Syn.V.CLASS, "FunctionPrototypeContext"),
+                   __.has(Dom.Syn.V.CLASS, "PackageTypeDeclarationContext"))
+
                 .as("entrySyn")
 
                 .addV(Dom.CFG).property(Dom.Cfg.V.TYPE, Dom.Cfg.V.Type.ENTRY).sideEffect(GremlinUtils.setNodeId())
@@ -529,32 +538,37 @@ public class ControlFlowAnalysis {
 
         private static Traversal<Vertex, Object> cond() {
             return 
-                  __.outE(Dom.SEM)
-                    .or(__.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.TRUE_BRANCH),
-                           __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.FALSE_BRANCH))
-                    .as("e").inV()
+                // select cfgs belonging to true and false edges
+                __.outE(Dom.SEM)
+                  .or(__.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.TRUE_BRANCH),
+                      __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.FALSE_BRANCH))
+                  .as("e").inV()
 
-                    .map(__.outE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC)
-                           .order().by(Dom.Cfg.E.ORD, Order.asc)
-                           .limit(1).inV())
-                    .as("cfgBranch")
-                    .optional(__.outE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.RETURN).inV())
-                    .as("cfgBranchCont")
+                  .map(__.outE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC)
+                         .order().by(Dom.Cfg.E.ORD, Order.asc)
+                         .limit(1).inV())
+                  .as("cfgBranch")
 
-                    .<Vertex>select("cfgB")
-                    .addE(Dom.CFG).to("cfgBranch")
-                    .property(Dom.Cfg.E.ROLE,
-                            __.choose(__.select("e").values(Dom.Sem.ROLE))
-                                    .option(Dom.Sem.Role.Control.TRUE_BRANCH, __.constant(Dom.Cfg.E.Role.TRUE_FLOW))
-                                    .option(Dom.Sem.Role.Control.FALSE_BRANCH, __.constant(Dom.Cfg.E.Role.FALSE_FLOW)))
-                    .sideEffect(GremlinUtils.setEdgeOrd())
+                // select return points of this nested cfg
+                  .optional(__.outE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.RETURN).inV())
+                  .as("cfgBranchCont")
 
-                    .<Vertex>select("cfgB")
-                    .addE(Dom.CFG).to("cfgBranchCont").property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.RETURN)
-                    .sideEffect(GremlinUtils.setEdgeOrd())
+                // send an edge to this nested cfg
+                  .<Vertex>select("cfgB")
+                  .addE(Dom.CFG).to("cfgBranch")
+                  .property(Dom.Cfg.E.ROLE,
+                          __.choose(__.select("e").values(Dom.Sem.ROLE))
+                                  .option(Dom.Sem.Role.Control.TRUE_BRANCH, __.constant(Dom.Cfg.E.Role.TRUE_FLOW))
+                                  .option(Dom.Sem.Role.Control.FALSE_BRANCH, __.constant(Dom.Cfg.E.Role.FALSE_FLOW)))
+                  .sideEffect(GremlinUtils.setEdgeOrd())
 
-                    .map(t -> (Object) t.get())
-                    .none();
+                // send an edge to to the return points of this nested cfg
+                  .<Vertex>select("cfgB")
+                  .addE(Dom.CFG).to("cfgBranchCont").property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.RETURN)
+                  .sideEffect(GremlinUtils.setEdgeOrd())
+
+                  .map(t -> (Object) t.get())
+                  .none();
         }
     }
 }
