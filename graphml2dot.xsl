@@ -86,7 +86,8 @@
     <xsl:param name="elemType" />
     <xsl:param name="separator" />
 
-    <xsl:for-each select="g:data[@key != 'labelV' and @key != 'labelE']">
+<!--    <xsl:for-each select="g:data[@key != 'labelV' and @key != 'labelE']"> -->
+    <xsl:for-each select="g:data">
         <xsl:variable name="currKey" select="./@key"/>
         <xsl:if test="position() > 1"> 
           <xsl:value-of select="$separator"/> 
