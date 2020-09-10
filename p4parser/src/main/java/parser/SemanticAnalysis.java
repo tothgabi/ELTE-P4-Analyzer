@@ -508,6 +508,9 @@ public class SemanticAnalysis {
     }
 
     public static class Symbol {
+
+        // NOTE syntax maybe too permissive with expressions: (~ (13 >> true) . etherType) is a syntactically valid expression, even though '~', '>>', and '.' are reserved tokens. for this reason I decided to handle case-by-case
+
         public static void analyse(GraphTraversalSource g){
             resolveNames(g);
             resolveTypeRefs(g);
@@ -516,6 +519,8 @@ public class SemanticAnalysis {
             fieldAndMethodScope(g);
             actionRefs(g);
             tableApps(g);
+            packageInstantiations(g);
+            controlAndParserInstantiations(g);
         }
 
         public static void resolveNames(GraphTraversalSource g){
@@ -532,6 +537,7 @@ public class SemanticAnalysis {
                 __.has(Dom.Syn.V.CLASS, "TableDeclarationContext"),
                 __.has(Dom.Syn.V.CLASS, "ControlDeclarationContext"),
                 __.has(Dom.Syn.V.CLASS, "ParserDeclarationContext"),
+                __.has(Dom.Syn.V.CLASS, "PackageTypeDeclarationContext"),
                 __.has(Dom.Syn.V.CLASS, "ParameterContext"))
             .as("root")
             .optional(__.outE(Dom.SYN).has(Dom.Syn.E.RULE, "parserTypeDeclaration").inV())
@@ -853,9 +859,55 @@ public class SemanticAnalysis {
              .sideEffect(GremlinUtils.setEdgeOrd())
              .iterate();
         }
+
+        public static void packageInstantiations(GraphTraversalSource g){
+            g.V().hasLabel(Dom.SYN)
+                 .has(Dom.Syn.V.CLASS, "InstantiationContext")
+                 .repeat(__.out(Dom.SYN))
+                 .until(__.has(Dom.Syn.V.CLASS, "TerminalNodeImpl")).as("pkgNode")
+                 .values("value").as("pkgName")
+
+                 .sideEffect(
+                    __.V().hasLabel(Dom.SYN)
+                      .has(Dom.Syn.V.CLASS, "PackageTypeDeclarationContext")
+                      .filter(__.outE(Dom.SYMBOL)
+                                .has(Dom.Symbol.ROLE, Dom.Symbol.Role.DECLARES_NAME)
+                                .inV()
+                                .values("value")
+                                .where(P.eq("pkgName"))) 
+                      .addE(Dom.SYMBOL).to("pkgNode")
+                      .property(Dom.Symbol.ROLE, Dom.Symbol.Role.SCOPES)
+                      .sideEffect(GremlinUtils.setEdgeOrd()))
+                .iterate();
+        }
         
-        // syntax maybe too permissive with expressions: (~ (13 >> true) . etherType) is a syntactically valid expression, even though '~', '>>', and '.' are reserved tokens.
-        public static void callerExpressions(GraphTraversalSource g){
+        public static void controlAndParserInstantiations(GraphTraversalSource g){
+            g.V().hasLabel(Dom.SYN)
+                 .has(Dom.Syn.V.CLASS, "InstantiationContext")
+                // find the argument-instantiations of the package instantiation
+                 .repeat(__.out(Dom.SYN))
+                 .until(__.has(Dom.Syn.V.CLASS, "ArgumentContext"))
+                 .outE(Dom.SYN).has(Dom.Syn.E.RULE, "expression").inV()
+                 .outE(Dom.SYN).has(Dom.Syn.E.RULE, "expression").inV()
+                 .repeat(__.out(Dom.SYN))
+                 .until(__.has(Dom.Syn.V.CLASS, "TerminalNodeImpl")).as("argNode")
+                 .values("value").as("argName")
+
+                // find controls and parser that declare the same name
+                 .sideEffect(
+                    __.V().hasLabel(Dom.SYN)
+                      .or(__.has(Dom.Syn.V.CLASS, "ControlDeclarationContext"),
+                          __.has(Dom.Syn.V.CLASS, "ParserDeclarationContext"))
+                      .filter(__.outE(Dom.SYMBOL)
+                                .has(Dom.Symbol.ROLE, Dom.Symbol.Role.DECLARES_NAME)
+                                .inV()
+                                .values("value")
+                                .where(P.eq("argName"))) 
+                      .addE(Dom.SYMBOL).to("argNode")
+                      .property(Dom.Symbol.ROLE, Dom.Symbol.Role.SCOPES)
+                      .sideEffect(GremlinUtils.setEdgeOrd()))
+                .iterate();
+                      
         }
     }
 
@@ -921,6 +973,8 @@ public class SemanticAnalysis {
              .sideEffect(GremlinUtils.setEdgeOrd())
              .iterate();
         }
+
+        // TODO this is technically wrong. first, the are "instantiated" by the top-level, and are passed to InstantiationContext which in turn is also an instantiation by the top-level. The functions are invoked by PackageTypeDeclaration which is an extern. 
         public static void whoInvokesParsersAndControls(GraphTraversalSource g){
             g.V().hasLabel(Dom.SYN)
                  .or(__.has(Dom.Syn.V.CLASS, "ControlDeclarationContext"),
@@ -938,30 +992,47 @@ public class SemanticAnalysis {
         }
     }
     
+    // NOTE P4 spec has almost nothing about type instantiations and method dispatch mechanisms.
+    //      It is not clear whether packet.extract(...) refers to the extract method in the 'packet' namespace, where 'packet' is just an alias to 'packet_in', or
+    //      it is actually a method call extract(packet, ...), where the definition of extract is selected based on the static type of 'packet'.
+    //      The first case is simpler, so I went with this for now.
     public static class CallSites {
         // TODO make this work for other kind of calls and functions
         public static void analyse(GraphTraversalSource g){
             whichCallInvokesWhichFunction(g);
-            whoAreArgumentsOfCall(g);
-            whoAreParemetersOfFunction(g);
+            whichCallOwnsWhichArguments(g);
+            whichFunctionOwnsWhichParameters(g);
             whichArgumentsInstantiateWhichParameters(g);
         }
         
         private static void whichCallInvokesWhichFunction(GraphTraversalSource g) {
-            g.V().hasLabel(Dom.SYN).has(Dom.Syn.V.CLASS, "FunctionPrototypeContext").as("decl")
+            g.V().hasLabel(Dom.SYN)
+            .or(__.has(Dom.Syn.V.CLASS, "FunctionPrototypeContext"),
+                __.has(Dom.Syn.V.CLASS, "TableDeclarationContext"),
+                __.has(Dom.Syn.V.CLASS, "PackageTypeDeclarationContext"),
+                __.has(Dom.Syn.V.CLASS, "ControlDeclarationContext"),
+                __.has(Dom.Syn.V.CLASS, "ParserDeclarationContext"))
+            .as("decl")
             .outE(Dom.SYMBOL).has(Dom.Symbol.ROLE, Dom.Symbol.Role.SCOPES).inV()
             .repeat(__.in(Dom.SYN))
-            .until(__.has(Dom.Syn.V.CLASS, "AssignmentOrMethodCallStatementContext"))
+            .until(
+                __.or(__.has(Dom.Syn.V.CLASS, "AssignmentOrMethodCallStatementContext"),
+                      __.has(Dom.Syn.V.CLASS, "DirectApplicationContext"),
+                      __.has(Dom.Syn.V.CLASS, "InstantiationContext"),
+                      __.has(Dom.Syn.V.CLASS, "ExpressionContext")
+                        .outE(Dom.SYN).has(Dom.Syn.E.RULE, "argumentList")))
             .addE(Dom.SITES).to("decl")
             .property(Dom.Sites.ROLE, Dom.Sites.Role.CALLS)
             .sideEffect(GremlinUtils.setEdgeOrd())
             .iterate();
+
         }
 
-        private static void whoAreArgumentsOfCall(GraphTraversalSource g) {
+        private static void whichCallOwnsWhichArguments(GraphTraversalSource g) {
             // TODO couldn't check but the arguments are probably in reverse order
             g.V().hasLabel(Dom.SYN)
-             .has(Dom.Syn.V.CLASS, "AssignmentOrMethodCallStatementContext").as("call")
+            .or(__.has(Dom.Syn.V.CLASS, "AssignmentOrMethodCallStatementContext"),
+                __.has(Dom.Syn.V.CLASS, "InstantiationContext")).as("call")
             .outE(Dom.SYN).has(Dom.Syn.E.RULE, "argumentList").inV()
             .repeat(__.outE(Dom.SYN).has(Dom.Syn.E.RULE, "nonEmptyArgList").inV())
             .emit()
@@ -972,20 +1043,22 @@ public class SemanticAnalysis {
             .sideEffect(GremlinUtils.setEdgeOrd())
             .iterate();
         }
-        private static void whoAreParemetersOfFunction(GraphTraversalSource g) {
+        private static void whichFunctionOwnsWhichParameters(GraphTraversalSource g) {
             // TODO couldn't check but the parameters are probably in reverse order
-            g.V().has(Dom.Syn.V.CLASS, "FunctionPrototypeContext").as("call")
-            .outE(Dom.SYN).has(Dom.Syn.E.RULE, "parameterList").inV()
-            .repeat(__.outE(Dom.SYN).has(Dom.Syn.E.RULE, "nonEmptyParameterList").inV())
-            .emit()
-            .outE(Dom.SYN).has(Dom.Syn.E.RULE, "parameter").inV()
-            .outE(Dom.SYN).has(Dom.Syn.E.RULE, "name").inV()
-            .repeat(__.out(Dom.SYN))
-            .until(__.has(Dom.Syn.V.CLASS, "TerminalNodeImpl"))
-            .addE(Dom.SITES).from("call")
-            .property(Dom.Sites.ROLE, Dom.Sites.Role.HAS_PARAMETER)
-            .sideEffect(GremlinUtils.setEdgeOrd())
-            .iterate();
+            g.V().or(__.has(Dom.Syn.V.CLASS, "FunctionPrototypeContext"),
+                     __.has(Dom.Syn.V.CLASS, "ActionDeclarationContext"),
+                     __.has(Dom.Syn.V.CLASS, "PackageTypeDeclarationContext")).as("func")
+             .outE(Dom.SYN).has(Dom.Syn.E.RULE, "parameterList").inV()
+             .repeat(__.outE(Dom.SYN).has(Dom.Syn.E.RULE, "nonEmptyParameterList").inV())
+             .emit()
+             .outE(Dom.SYN).has(Dom.Syn.E.RULE, "parameter").inV()
+             .outE(Dom.SYN).has(Dom.Syn.E.RULE, "name").inV()
+             .repeat(__.out(Dom.SYN))
+             .until(__.has(Dom.Syn.V.CLASS, "TerminalNodeImpl"))
+             .addE(Dom.SITES).from("func")
+             .property(Dom.Sites.ROLE, Dom.Sites.Role.HAS_PARAMETER)
+             .sideEffect(GremlinUtils.setEdgeOrd())
+             .iterate();
         }
 
         private static void whichArgumentsInstantiateWhichParameters(GraphTraversalSource g) {
