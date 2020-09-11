@@ -54,16 +54,21 @@ public class AntlrP4 {
         Graph graph = TinkerGraphParseTree.fromParseTree(tree, lexer.getVocabulary(), parser.getRuleNames());
 //        printSyntaxTree(graph);
 
+        Normalisation.analyse(graph);
+        GremlinUtils.resetNodeIds(graph, Dom.SYN);
+//        printSyntaxTree(graph);
+
+
         SemanticAnalysis.analyse(graph);
 //        printSemanticGraph(graph);
 
 //        printSymbol(graph);
 //        printCalls(graph);
-        printCallSites(graph);
+//        printCallSites(graph);
 
         ControlFlowAnalysis.analyse(graph);
-//        printCfg(graph);
-
+        printCfg(graph);
+//        ExternControlFlow.analyse(graph);
     }
 
 

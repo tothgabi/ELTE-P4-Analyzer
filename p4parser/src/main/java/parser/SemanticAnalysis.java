@@ -556,7 +556,6 @@ public class SemanticAnalysis {
         }
 
         // TODO typeRefs can be prefixed
-        // TODO REFERS_TO is redundant, it is the same as SCOPES, just the opposite direction
         public static void resolveTypeRefs(GraphTraversalSource g){
             g.E().hasLabel(Dom.SYN).has(Dom.Syn.E.RULE, "typeRef").as("e")
             .outV().as("typedExpr")
@@ -974,7 +973,7 @@ public class SemanticAnalysis {
              .iterate();
         }
 
-        // TODO this is technically wrong. first, the are "instantiated" by the top-level, and are passed to InstantiationContext which in turn is also an instantiation by the top-level. The functions are invoked by PackageTypeDeclaration which is an extern. 
+        // TODO this is technically wrong. first, they are "instantiated" by the top-level, and are passed to InstantiationContext which in turn is also an instantiation by the top-level. The functions are invoked by PackageTypeDeclaration which is an extern. 
         public static void whoInvokesParsersAndControls(GraphTraversalSource g){
             g.V().hasLabel(Dom.SYN)
                  .or(__.has(Dom.Syn.V.CLASS, "ControlDeclarationContext"),

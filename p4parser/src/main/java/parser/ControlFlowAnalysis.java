@@ -367,24 +367,28 @@ public class ControlFlowAnalysis {
                     __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.FALSE_BRANCH))
                 .inV()
                 .order().by(Dom.Syn.V.NODE_ID, Order.desc)
-                .map(subCfgs())
-                .match(
-                    __.as("cfgBlock").optional(__.outE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.RETURN).inV()).as("cfgReturn"),
-                    __.as("cfgBlock").inE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC).outV()  // .as("synBlock")
-                      .inE(Dom.SEM).has(Dom.Sem.ROLE, Dom.Sem.Role.Control.BODY).outV() // .as("controlDecl")
-                      .outE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC).inV()
-                      .as("cfgEntry"),
-                    __.as("cfgEntry").outE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.RETURN).inV().as("cfgExit"))
+                .map(subCfgs()).as("cfgBlock")
 
-//              // link the entry to block
-                .addE(Dom.CFG).from("cfgEntry").to("cfgBlock")
-                .property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.FLOW)
-                .sideEffect(GremlinUtils.setEdgeOrd())
-                
-//            // link the return pointst of the cfg to the exit 
-                .addE(Dom.CFG).from("cfgReturn").to("cfgExit")
-                .property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.FLOW)
-                .sideEffect(GremlinUtils.setEdgeOrd())
+                .inE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC).outV()  // .as("synBlock")
+                // note: if this is was not the top-level block, then the next one will be empty (nothing to do)
+                .inE(Dom.SEM).has(Dom.Sem.ROLE, Dom.Sem.Role.Control.BODY).outV() // .as("controlDecl") 
+                .outE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC).inV() // .as("cfgEntry")
+
+                // link the entry to block
+                .sideEffect(
+                    __.addE(Dom.CFG).to("cfgBlock")
+                    .property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.FLOW)
+                    .sideEffect(GremlinUtils.setEdgeOrd()))
+
+                .outE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.RETURN).inV().as("cfgExit")
+
+                // link the return points of the cfg to the exit 
+                .select("cfgBlock")
+                .sideEffect(
+                    __.optional(__.outE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.RETURN).inV())
+                      .addE(Dom.CFG).to("cfgExit")
+                      .property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.FLOW)
+                      .sideEffect(GremlinUtils.setEdgeOrd()))
 
                 .iterate();
 

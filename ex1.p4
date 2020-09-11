@@ -66,6 +66,13 @@ control ingress(inout headers hdr, inout metadata meta, inout standard_metadata_
             hdr.ipv4.dstAddr: lpm;
         }
         size = 1024;
+
+        const entries = {
+            (0x01, 0x1111 &&& 0xF   ) : set_nhop(1);
+            (0x02, 0x1181           ) : set_nhop(2);
+            (0x06, _                ) : set_nhop(6);
+        }
+        
     }
     action set_nhop(bit<32> nhgroup) {
         meta.routing_metadata.nhgroup = nhgroup;
@@ -91,48 +98,48 @@ control ingress(inout headers hdr, inout metadata meta, inout standard_metadata_
         hdr.ethernet.srcAddr = smac_val;
     }
 
-//    apply {
-//      if (hdr.ipv4.isValid()) {
-//          ipv4_lpm.apply();
-//          nexthops.apply();
-//      }
-//    }
-
-    // syntax does not forbid redeclaration, and the spec does not mention it, but p4c forbids it.
-    // not sure what happens when variable is declared in adjacent branches.
     apply {
-      int x = 12;  
-      const int y = 14;
-      ipv4_lpm.apply(); // 1
-      x = x + y;
-            
-      {ipv4_lpm.apply(); ipv4_lpm.apply();} // 2
       if (hdr.ipv4.isValid()) {
           ipv4_lpm.apply();
-          ipv4_lpm.apply();
-          ipv4_lpm.apply(); // 3
-          { {} }
           nexthops.apply();
-          nexthops.apply();
-          nexthops.apply();
-          nexthops.apply(); // 4
-      } else {
-          nexthops.apply();
-          nexthops.apply();
-          nexthops.apply();
-          nexthops.apply();
-          nexthops.apply(); // 5
-      }
-      { ipv4_lpm.apply();ipv4_lpm.apply();ipv4_lpm.apply();ipv4_lpm.apply();ipv4_lpm.apply();ipv4_lpm.apply();} // 6
-
-      nexthops.apply();
-      nexthops.apply();
-      nexthops.apply();
-      nexthops.apply();
-      nexthops.apply();
-      nexthops.apply();
-      nexthops.apply(); // 7
+      }     
     }
+
+//    // syntax does not forbid redeclaration, and the spec does not mention it, but p4c forbids it.
+//    // not sure what happens when variable is declared in adjacent branches.
+//    apply {
+//      int x = 12;  
+//      const int y = 14;
+//      ipv4_lpm.apply(); // 1
+//      x = x + y;
+//            
+//      {ipv4_lpm.apply(); ipv4_lpm.apply();} // 2
+//      if (hdr.ipv4.isValid()) {
+//          ipv4_lpm.apply();
+//          ipv4_lpm.apply();
+//          ipv4_lpm.apply(); // 3
+//          { {} }
+//          nexthops.apply();
+//          nexthops.apply();
+//          nexthops.apply();
+//          nexthops.apply(); // 4
+//      } else {
+//          nexthops.apply();
+//          nexthops.apply();
+//          nexthops.apply();
+//          nexthops.apply();
+//          nexthops.apply(); // 5
+//      }
+//      { ipv4_lpm.apply();ipv4_lpm.apply();ipv4_lpm.apply();ipv4_lpm.apply();ipv4_lpm.apply();ipv4_lpm.apply();} // 6
+//
+//      nexthops.apply();
+//      nexthops.apply();
+//      nexthops.apply();
+//      nexthops.apply();
+//      nexthops.apply();
+//      nexthops.apply();
+//      nexthops.apply(); // 7
+//    }
 }
 
 control DeparserImpl(packet_out packet, in headers hdr) {

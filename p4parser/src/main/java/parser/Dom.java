@@ -4,6 +4,8 @@ package parser;
 // TODO remove subdomains from semantic analysis. each subdomain concerns the whole language so they are pointless.
 
 // TODO make edge names into meaningful verbs
+
+// TODO is there any way to reuse Java type system for domain checking?
 public class Dom {
    public static final String SYN="syn";
    public static final String SEM="sem";
