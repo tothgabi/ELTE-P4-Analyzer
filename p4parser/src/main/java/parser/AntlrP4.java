@@ -21,7 +21,10 @@ import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.TokenStream;
 import org.antlr.v4.runtime.tree.ParseTree;
+import org.apache.tinkerpop.gremlin.process.traversal.Step;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Graph;
+import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
 
 import parser.GraphUtils.Label;
 import parser.p4.*;
@@ -32,6 +35,7 @@ public class AntlrP4 {
     // TODO formalize the analysis dependencies: https://github.com/j-easy/easy-flows
     public static void main(String[] args) throws IOException, ParserConfigurationException, TransformerException,
             InterruptedException {
+
 
 // use this line to generate P4Lexer class and P4Parser class along with the P4BaseVisitor class:
 //      org.antlr.v4.Tool.main(new String[]{"-visitor", "-o", "hmm/src/main/java/hmm/p4", "-package", "hmm.p4", "P4.g4"});
@@ -63,6 +67,7 @@ public class AntlrP4 {
         graph = TinkerGraphParseTree.fromParseTree(tree, lexer.getVocabulary(), parser.getRuleNames());
 //        printSyntaxTree(graph);
 
+
         Normalisation.analyse(graph);
         GremlinUtils.resetNodeIds(graph, Dom.SYN);
 //        printSyntaxTree(graph);
@@ -75,9 +80,11 @@ public class AntlrP4 {
 //        printCalls(graph);
 //        printCallSites(graph);
 
+        ControlFlowAnalysis.Control3.printQuery(graph);
+
         ControlFlowAnalysis.analyse(graph);
 
-        printCfg(graph);
+//        printCfg(graph);
 //        ExternControlFlow.analyse(graph);
     }
 

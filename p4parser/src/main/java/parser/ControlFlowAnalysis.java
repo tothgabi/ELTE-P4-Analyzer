@@ -28,6 +28,7 @@ import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
 
 import net.sf.saxon.exslt.Date;
 import parser.p4.P4Parser.ConditionalStatementContext;
@@ -628,13 +629,24 @@ public class ControlFlowAnalysis {
 //   3. link "r" to exit.
 
     static class Control3 {
+
+        public static void printQuery(Graph graph){
+            GraphTraversalSource g  = TinkerGraph.open().traversal();
+            System.out.println(GremlinLatex.traversalToLatex(g.V().hasLabel(Dom.SYN)
+                 .has(Dom.Syn.V.CLASS, "ControlDeclarationContext")
+                 .sideEffect(ControlFlowAnalysis.Control3.control(g))
+                 .iterate()));
+        }
+
         private static void analyseInQueryForm(GraphTraversalSource g) {
             g.V().hasLabel(Dom.SYN)
                  .has(Dom.Syn.V.CLASS, "ControlDeclarationContext")
                  .sideEffect(control(g))
                  .iterate();
+
+
         }
-        private static Traversal<Vertex, Object> control(GraphTraversalSource g){
+        static Traversal<Vertex, Object> control(GraphTraversalSource g){
             return
             __.<Vertex>identity().as("decl")
               .sideEffect(t -> ((BulkSet<Vertex>) t.sideEffects("r")).clear())
