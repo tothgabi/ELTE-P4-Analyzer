@@ -67,6 +67,7 @@ public class XMLParseTree {
         public Element visitChildren(RuleNode node) {
             Element result = doc.createElement(node.getClass().getSimpleName());
 
+
             int n = node.getChildCount();
             for (int i=0; i<n; i++) {
                 if (!shouldVisitNextChild(node, result)) {

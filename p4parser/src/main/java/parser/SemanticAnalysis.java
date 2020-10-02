@@ -635,12 +635,13 @@ public class SemanticAnalysis {
         // TODO is there variable covering? (e.g. action parameters cover control parameters?)
         // - if yes, start adding edges from the bottom, and don't add new edges to those who already have one
         public static void parameterScope(GraphTraversalSource g){
-            // select parameters
+            // find parameters
             g.V().hasLabel(Dom.SYN).has(Dom.Syn.V.CLASS, "ParameterContext")
              .as("decl")
              .outE(Dom.SYMBOL).has(Dom.Symbol.ROLE, Dom.Symbol.Role.DECLARES_NAME).inV()
              .values("value")
              .as("declaredName")
+
              .<Vertex>select("decl")
 
              // go up in the tree to find the procedure that owns the parameter

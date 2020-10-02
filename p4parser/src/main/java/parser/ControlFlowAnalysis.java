@@ -8,6 +8,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 import java.util.Stack;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -21,11 +22,15 @@ import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSo
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.process.traversal.step.TraversalOptionParent.Pick;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.BulkSet;
+import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMetrics;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
+
+import net.sf.saxon.exslt.Date;
+import parser.p4.P4Parser.ConditionalStatementContext;
 
 public class ControlFlowAnalysis {
 
@@ -39,7 +44,9 @@ public class ControlFlowAnalysis {
         findEntryExit(g);
         Parser.analyse(g);
 //        Control.analyse(g);
-       Control2.analyseInQueryForm(g);
+//          Control2.analyseInQueryForm(g);
+//        return dur;
+       Control3.analyseInQueryForm(g);
     }
 
     // TODO it is pointless to extract this here. move its relevant parts to the
@@ -358,8 +365,9 @@ public class ControlFlowAnalysis {
 
     private static class Control2 {
 
-        private static void analyseInQueryForm(GraphTraversalSource g) {
-
+        private static long analyseInQueryForm(GraphTraversalSource g) {
+           
+            TraversalMetrics m = 
             g.E().hasLabel(Dom.SEM)
                 .or(__.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.BODY),
                     __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.NEST),
@@ -383,15 +391,16 @@ public class ControlFlowAnalysis {
                 .outE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.RETURN).inV().as("cfgExit")
 
                 // link the return points of the cfg to the exit 
+
                 .select("cfgBlock")
-                .sideEffect(
-                    __.optional(__.outE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.RETURN).inV())
-                      .addE(Dom.CFG).to("cfgExit")
-                      .property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.FLOW)
-                      .sideEffect(GremlinUtils.setEdgeOrd()))
+                .optional(__.outE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.RETURN).inV())
+                .addE(Dom.CFG).to("cfgExit")
+                .property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.FLOW)
+                .sideEffect(GremlinUtils.setEdgeOrd())
+                .profile()
+                .next();
 
-                .iterate();
-
+            return m.getDuration(TimeUnit.MILLISECONDS);
 
         }
 
@@ -437,6 +446,38 @@ public class ControlFlowAnalysis {
                     __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.STATEMENT))
                 .order().by(Dom.Sem.ORD, Order.desc)
                  
+// note 1: inV must be inside the choose, because we test on the edge                
+// note 2: choose must be inside a sideEffect, because aggregate is eager by default.
+//   try these two examples to see the difference. 
+//            g.inject("a","b","c")
+//             .sideEffect(t -> ((BulkSet<Vertex>) t.sideEffects("x")).clear())
+//             .aggregate("x")
+//             .cap("x").toList() 
+//            == [{a=1, b=1, c=1}]
+//
+//            g.inject("a","b","c")
+//             .sideEffect(
+//                 __.sideEffect(t -> ((BulkSet<Vertex>) t.sideEffects("x")).clear())
+//                   .aggregate("x"))
+//             .cap("x").toList()
+//            == [{c=1}]
+
+//   in the first, we have: foreach traversals{clean x;}; foreach traversals{aggregate into x;};
+//   in the second, we have: foreach traversals{clean x; aggregate into x;};
+//   if you modify the first to have aggregate(Scope.local, "x"), you get [{c=1}] here as well. 
+
+//   note that Marko's gremlin paper has an error on page 2: it says a.b.c means a o b o c (so (aoboc)(x) = a(b(c(x)))), 
+//   but later he translates a.b.c as c(b(a(x)))
+//
+//   in eager evaluation mode f(g(h())) is evaluated by first completely evaluating h, then g, then f.
+//   in lazy evaluation mode, f is evaluated first, and g(h()) is only evaluated when it is used by f.
+
+//   so sideEffect(clear) . aggregate("x") means first evaluate sideEffect and then we aggregate.
+//   sideEffect(clear) . aggregate(local, "x") means we evaluate aggregate partially, which then asks
+//     for the elements to aggregate, subsequently calling the clearing sideEffect each time 
+//    
+//   lazy evaluation and side-effects are not a good combination, better to avoid it
+
                 .sideEffect(
                   __.choose(__.values(Dom.Sem.ROLE))
                     .option(Dom.Sem.Role.Control.STATEMENT, 
@@ -444,11 +485,11 @@ public class ControlFlowAnalysis {
 
                     .option(Dom.Sem.Role.Control.NEST, 
                             __.inV()
-    //                          .sideEffect(t -> System.out.println((BulkSet) t.sideEffects("S")))
+   //                          .sideEffect(t -> System.out.println((BulkSet) t.sideEffects("S")))
                             .sideEffect(innerNest())
                             .sideEffect(t -> ((BulkSet<Vertex>) t.sideEffects("S")).clear()))
-                    .option(Pick.none, __.inV()))
-
+                    .option(Pick.none, __.inV())
+                    )
 
                 .tail(1)
                 .sideEffect(
@@ -575,4 +616,123 @@ public class ControlFlowAnalysis {
                   .none();
         }
     }
+
+// a simpler alternative to the current one: 
+// - blocks are compositions of continuations. cont(1) = statement o cont(2)
+// - CFG is a call graph between continuations
+// - 0. store the entry node as "r".
+//   1. pick the top syntax block. 
+//   2. go through each children (statement, nested block, or cond):
+//      i. create a cfg node for the child. and link "r" to the new node.
+//      ii. process the child recursively, and store its return point in "r"
+//   3. link "r" to exit.
+
+    static class Control3 {
+        private static void analyseInQueryForm(GraphTraversalSource g) {
+            g.V().hasLabel(Dom.SYN)
+                 .has(Dom.Syn.V.CLASS, "ControlDeclarationContext")
+                 .sideEffect(control(g))
+                 .iterate();
+        }
+        private static Traversal<Vertex, Object> control(GraphTraversalSource g){
+            return
+            __.<Vertex>identity().as("decl")
+              .sideEffect(t -> ((BulkSet<Vertex>) t.sideEffects("r")).clear())
+              .sideEffect(__.outE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC).inV().aggregate("r"))
+              .as("decl")
+
+              .sideEffect(
+                   __.outE(Dom.SEM).has(Dom.Sem.ROLE, Dom.Sem.Role.Control.BODY).inV()
+                     .sideEffect(node(g)))
+              .outE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC).inV()
+              .outE(Dom.CFG).has(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.RETURN).inV()
+              .as("exit")
+              .sideEffect(
+                __.flatMap(__.cap("r").unfold())
+                  .addE(Dom.CFG).to("exit") 
+                  .property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.FLOW)
+                  .sideEffect(GremlinUtils.setEdgeOrd()))
+
+              .map(t -> (Object) t.get())
+              .none();
+        }
+
+        // r is used to store returns points for the next sibling after the current sibling was processed 
+        @SuppressWarnings("unchecked")
+        private static GraphTraversal<Vertex, Vertex> node(GraphTraversalSource g){
+            return
+              __.<Vertex>as("synB")
+              .addV(Dom.CFG).as("newB")
+              .property(Dom.Cfg.V.TYPE, Dom.Cfg.V.Type.BLOCK)
+              .sideEffect(GremlinUtils.setNodeId())
+
+              .sideEffect(t -> System.out.println("created:" + t.get().value("nodeId").toString()))
+              .sideEffect(
+                    __.addE(Dom.CFG).to("newB").from("synB") 
+                    .property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.ASSOC)
+                    .sideEffect(GremlinUtils.setEdgeOrd())
+    
+                    // note: unfold() loses reference to newB, flatMap circumvents this
+                    .flatMap(__.cap("r").unfold())
+                    .sideEffect(t -> System.out.println("linked to r=" + ((Vertex) t.get()).value("nodeId").toString()))
+                    .addE(Dom.CFG).to("newB") 
+                    .property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.FLOW)
+                    .sideEffect(GremlinUtils.setEdgeOrd()))
+
+              .coalesce(
+                    cond(g), // it is a conditional
+                    block(g), // it is block with nested elements
+                    empty(g)); // it is an empty block
+        }
+
+        private static GraphTraversal<Vertex, Vertex> cond(GraphTraversalSource g){
+            return
+                __.<Vertex>identity()
+                    // stores newB locally (global is not good, it gets overwritten)
+                    .sack((a,b) -> b).by(__.<Vertex>identity().map(t -> {BulkSet<Vertex> b = new BulkSet<>(); b.add(t.get()); return b;}))
+                    .select("synB")
+                  .<Vertex>has(Dom.Syn.V.CLASS, "ConditionalStatementContext")
+                  .outE(Dom.SEM).or(
+                        __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.TRUE_BRANCH),
+                        __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.FALSE_BRANCH))
+                  .order().by(Dom.Cfg.E.ORD, Order.asc)
+                  .inV()
+                  .flatMap(t -> g.V(t.get())
+                                 .sideEffect(__.constant(((BulkSet<Vertex>)t.sack()).iterator().next()).aggregate("r"))
+                                 .flatMap(node(g)).toList().iterator())
+
+                  .sideEffect(t -> ((BulkSet<Vertex>) t.sideEffects("r")).clear())
+                  .aggregate("r")
+                  ;
+        }
+
+        private static GraphTraversal<Vertex, Vertex> block(GraphTraversalSource g){
+            return
+                __.<Vertex>identity()
+                .sideEffect(t -> ((BulkSet<Vertex>) t.sideEffects("r")).clear())
+                .aggregate("r")
+                .sideEffect(t -> System.out.println("saved:" + ((BulkSet<Vertex>) t.sideEffects("r")).iterator().next().value("nodeId").toString()))
+                .select("synB")
+                .outE(Dom.SEM)
+                .or(__.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.NEST),
+                    __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.STATEMENT))
+                .order().by(Dom.Cfg.E.ORD, Order.asc)
+                .inV()
+                .flatMap(__.<Vertex, List<Vertex>>map(
+                              t -> g.V(t.get())
+                                    .sideEffect(__.constant(t.sideEffects("r")).unfold().aggregate("r"))
+                                    .flatMap(node(g)).fold().next())
+                           .sideEffect(t -> ((BulkSet<Vertex>) t.sideEffects("r")).clear())
+                           .sideEffect(__.unfold().aggregate("r")))
+                .tail(1)
+                .unfold();
+        }
+
+        private static GraphTraversal<Vertex, Vertex> empty(GraphTraversalSource g){
+            return 
+                __.<Vertex>sideEffect(t -> ((BulkSet<Vertex>) t.sideEffects("r")).clear())
+                  .aggregate("r");
+        }
+    }
+
 }

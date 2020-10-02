@@ -99,10 +99,37 @@ control ingress(inout headers hdr, inout metadata meta, inout standard_metadata_
     }
 
     apply {
+
+//        if (hdr.ipv4.isValid()) {
+//            ipv4_lpm.apply();
+//        } else {
+//
+//        }  
+//        nexthops.apply();
+
+      ipv4_lpm.apply();
+      nexthops.apply();
+      {{}}
       if (hdr.ipv4.isValid()) {
-          ipv4_lpm.apply();
-          nexthops.apply();
-      }     
+        if (hdr.ipv4.isValid()) {
+            ipv4_lpm.apply();
+            nexthops.apply();
+            ipv4_lpm.apply();
+        } else {
+
+        }  
+      }  else {
+        if (hdr.ipv4.isValid()) {
+            ipv4_lpm.apply();
+        } else {
+            ipv4_lpm.apply();
+
+        }  
+        {{}}
+      }
+
+      ipv4_lpm.apply();
+      nexthops.apply();
     }
 
 //    // syntax does not forbid redeclaration, and the spec does not mention it, but p4c forbids it.

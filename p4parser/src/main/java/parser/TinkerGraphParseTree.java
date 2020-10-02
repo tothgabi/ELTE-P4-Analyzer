@@ -25,6 +25,7 @@ import parser.p4.P4BaseVisitor;
 public class TinkerGraphParseTree {
     public static Graph fromParseTree(ParseTree tree, Vocabulary vocab, String[] ruleNames) {
             Graph graph = TinkerGraph.open();
+            graph.configuration().setProperty(Dom.Syn.V.NODE_ID, null);
             GremlinUtils.initializeNodeIds(graph, Dom.SYN);
 
             GraphTraversalSource g = graph.traversal();
