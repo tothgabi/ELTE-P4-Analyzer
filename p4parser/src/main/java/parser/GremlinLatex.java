@@ -49,7 +49,6 @@ import org.apache.tinkerpop.gremlin.tinkergraph.process.traversal.step.sideEffec
 import org.javatuples.Pair;
 
 public class GremlinLatex {
-    private final static String fwdComp = " \\leadsto ";
 
     // note: Step is not prepared to accept Visitors, and with instanceof I had to
     // copy class names twice
@@ -90,6 +89,9 @@ public class GremlinLatex {
     private static String traversalToLatex(List<Step> steps) {
         String delim = "";
         StringBuilder sb = new StringBuilder();
+
+         sb.append("{ \\left ( ");
+        sb.append("\\begin{aligned}" + System.lineSeparator() + "& \\ ");
         for (Step step : steps) {
             sb.append(delim);
             sb.append(dispatcher(step));
@@ -97,10 +99,12 @@ public class GremlinLatex {
                 if (step.getLabels().size() != 1)
                     throw new RuntimeException("unimplemented case found: " + step);
                 sb.append("@");
-                sb.append("\\text{" + step.getLabels().iterator().next() + "}");
+                sb.append("\\mathtt{" + step.getLabels().iterator().next() + "}");
             }
-            delim = fwdComp;
+            delim = "\\\\" + System.lineSeparator() + "&\\leadsto \\ ";
         }
+        sb.append(System.lineSeparator() + "\\end{aligned}" );
+         sb.append(" \\right ) }");
         return sb.toString();
     }
 
@@ -131,9 +135,17 @@ public class GremlinLatex {
         List<Step> steps = step.getLocalChildren().get(0).getSteps();
 
         StringBuilder sb = new StringBuilder();
-        sb.append("\\text{sideEffect}^{ ");
+        sb.append("\\text{sideEffect}{");
         sb.append(traversalToLatex(steps));
-        sb.append(" }");
+        sb.append("}");
+
+//         sb.append("\\text{sideEffect} \\left ( {\\begin{matrix} ");
+//         sb.append(traversalToLatex(steps));
+//         sb.append("\\end{matrix}} \\right )");
+
+//        sb.append("\\text{sideEffect}^{ ");
+//        sb.append(traversalToLatex(steps));
+//        sb.append(" }");
         return sb.toString();
     }
 
@@ -144,9 +156,18 @@ public class GremlinLatex {
         List<Step> steps = ((Admin) step.getLocalChildren().get(0)).getSteps();
 
         StringBuilder sb = new StringBuilder();
-        sb.append("\\text{flatMap}^{ ");
+
+        sb.append("\\text{flatMap}{");
         sb.append(traversalToLatex(steps));
-        sb.append(" }");
+        sb.append("}");
+
+//        sb.append("\\text{flatMap} \\left ( {\\begin{matrix} ");
+//        sb.append(traversalToLatex(steps));
+//        sb.append("\\end{matrix}} \\right )");
+
+//        sb.append("\\text{flatMap}^{ ");
+//        sb.append(traversalToLatex(steps));
+//        sb.append(" }");
         return sb.toString();
     }
 
@@ -188,13 +209,13 @@ public class GremlinLatex {
         return "\\text{identity}";
     }
     public static String visit(LambdaSideEffectStep step){
-        return "\\text{sideEffect}^\\text{LAMBDA}";
+        return "\\text{sideEffect}(\\text{LAMBDA})";
     }
     public static String visit(LambdaMapStep step){
-        return "\\text{map}^\\text{LAMBDA}";
+        return "\\text{map}(\\text{LAMBDA})";
     }
     public static String visit(LambdaFlatMapStep step){
-        return "\\text{flatMap}^\\text{LAMBDA}";
+        return "\\text{flatMap}(\\text{LAMBDA})";
     }
     public static String visit(HasStep step){
         return "\\text{has}_{" + visitHasContainers(step.getHasContainers()) + "}";
@@ -226,7 +247,7 @@ public class GremlinLatex {
         Pair p = (Pair) step .getComparators().iterator().next();
 
         String key = ((ElementValueTraversal) p.getValue(0)).getPropertyKey();
-        return String.format("\\text{order}^\\mathtt{%s}_{%s}", p.getValue(1), key);
+        return String.format("\\text{order}_{\\{\\mathit{in}=\\mathtt{%s}, \\mathit{by}=\\mathtt{%s}\\}}", p.getValue(1), key);
     }
     public static String visit(TailGlobalStep step){
         // note: limit is private field in TailGlobalStep, and the interface is missing
@@ -238,13 +259,24 @@ public class GremlinLatex {
         List<Traversal> traversals = (List<Traversal>) step.getLocalChildren();
 
         StringBuilder sb = new StringBuilder();
-        sb.append("\\text{coalesce}{\\left.\\begin{cases}");
-        sb.append(System.lineSeparator());
+//          sb.append("\\text{coalesce}^{");
+//          sb.append("}");
+
+//        sb.append("\\text{coalesce}{\\left.\\begin{cases}");
+//        sb.append(System.lineSeparator());
+//        for (Traversal t : traversals) {
+//            sb.append(traversalToLatex(t));
+//            sb.append("\\\\");
+//        }
+//        sb.append("\\end{cases}\\right\\}");
+
+        sb.append("\\text{coalesce} { \\left \\downarrow \\begin{matrix}");
         for (Traversal t : traversals) {
             sb.append(traversalToLatex(t));
             sb.append("\\\\");
         }
-        sb.append("\\end{cases}\\right\\}}");
+        sb.append("\\end{matrix} \\right \\downarrow }");
+
         return sb.toString();
     }
     public static String visit(SackValueStep step){
@@ -253,7 +285,7 @@ public class GremlinLatex {
 
         String t = traversalToLatex((Traversal) step.getLocalChildren().get(0));
 
-        return "\\text{sack}^{"+t+"}";
+        return "\\text{sack}{"+t+"}";
     }
     public static String visit(SelectOneStep step){
         if(step.getPop() != Pop.last)
@@ -268,7 +300,9 @@ public class GremlinLatex {
         return "\\text{aggregate}_\\mathtt{" + step.getSideEffectKey() + "}";
     }
     public static String visit(SideEffectCapStep step){
-        return "\\text{cap}_\\mathtt{" + step.getSideEffectKeys() + "}";
+        if ( step.getSideEffectKeys().size() != 1)
+            throw new RuntimeException("unimplemented case found: " + step);
+        return "\\text{cap}_\\mathtt{" + step.getSideEffectKeys().iterator().next() + "}";
     }
 
     public static String visit(UnfoldStep step){

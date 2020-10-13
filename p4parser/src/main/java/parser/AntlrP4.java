@@ -36,8 +36,16 @@ public class AntlrP4 {
     public static void main(String[] args) throws IOException, ParserConfigurationException, TransformerException,
             InterruptedException {
 
+// // query printing
+//        File f = File. createTempFile("query", ".tex");
+//        PrintStream ps = new PrintStream(f);
+//        ControlFlowAnalysis.Control3.printQuery(ps);
+//        System.out.println("query printed to " + f.getAbsolutePath());
+//        ps.close();
+//        System.exit(0);
 
-// use this line to generate P4Lexer class and P4Parser class along with the P4BaseVisitor class:
+
+// // use this line to generate P4Lexer class and P4Parser class along with the P4BaseVisitor class:
 //      org.antlr.v4.Tool.main(new String[]{"-visitor", "-o", "hmm/src/main/java/hmm/p4", "-package", "hmm.p4", "P4.g4"});
 
 //  // To parse without resolving includes:
@@ -80,11 +88,10 @@ public class AntlrP4 {
 //        printCalls(graph);
 //        printCallSites(graph);
 
-        ControlFlowAnalysis.Control3.printQuery(graph);
 
         ControlFlowAnalysis.analyse(graph);
 
-//        printCfg(graph);
+        printCfg(graph);
 //        ExternControlFlow.analyse(graph);
     }
 

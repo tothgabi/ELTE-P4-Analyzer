@@ -1,5 +1,6 @@
 package parser;
 
+import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -48,6 +49,8 @@ public class ControlFlowAnalysis {
 //          Control2.analyseInQueryForm(g);
 //        return dur;
        Control3.analyseInQueryForm(g);
+
+//       Control4.analyse(g);
     }
 
     // TODO it is pointless to extract this here. move its relevant parts to the
@@ -630,12 +633,24 @@ public class ControlFlowAnalysis {
 
     static class Control3 {
 
-        public static void printQuery(Graph graph){
+        public static void printQuery(PrintStream out){
+
+            out.println("\\documentclass[12pt]{article}");
+            out.println("\\usepackage{graphicx}");
+            out.println("\\usepackage{amsmath}");
+            out.println("\\usepackage{amsfonts,amssymb}");
+            out.println("\\begin{document}");
+            out.println("\\resizebox{!}{0.5\\textheight}{$");
+
+
             GraphTraversalSource g  = TinkerGraph.open().traversal();
-            System.out.println(GremlinLatex.traversalToLatex(g.V().hasLabel(Dom.SYN)
+            out.println(GremlinLatex.traversalToLatex(g.V().hasLabel(Dom.SYN)
                  .has(Dom.Syn.V.CLASS, "ControlDeclarationContext")
                  .sideEffect(ControlFlowAnalysis.Control3.control(g))
                  .iterate()));
+
+            out.println("$}");
+            out.println("\\end{document}");
         }
 
         private static void analyseInQueryForm(GraphTraversalSource g) {
@@ -744,6 +759,57 @@ public class ControlFlowAnalysis {
             return 
                 __.<Vertex>sideEffect(t -> ((BulkSet<Vertex>) t.sideEffects("r")).clear())
                   .aggregate("r");
+        }
+    }
+
+    // TODO not finished (this will CFG edges inside syntax tree.)
+    static class Control4 {
+        private static void analyse(GraphTraversalSource g) {
+            
+            g.V().hasLabel(Dom.SYN).has(Dom.Syn.V.CLASS, "BlockStatementContext").as("b")
+//            .sideEffect(t -> System.out.println("0"))
+//             .sideEffect(__.outE().elementMap().sideEffect(t -> System.out.println(t.get())))
+             .outE(Dom.SEM).or(
+                __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.STATEMENT),
+                __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.NEST))
+             .order().by(Dom.Cfg.E.ORD, Order.asc)
+             .limit(1)
+             .inV()
+             .sideEffect(t -> System.out.println("2"))
+             .addE(Dom.CFG).from("b")
+             .property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.FLOW)
+             .sideEffect(GremlinUtils.setEdgeOrd())
+             .iterate();
+
+            g.V().hasLabel(Dom.SYN).has(Dom.Syn.V.CLASS, "ConditionalStatementContext").as("b")
+             .outE(Dom.SEM).or(
+                __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.TRUE_BRANCH),
+                __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.FALSE_BRANCH))
+             .inV()
+             .addE(Dom.CFG).from("b")
+             .property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.FLOW)
+             .sideEffect(GremlinUtils.setEdgeOrd())
+             .iterate();
+
+            g.V().hasLabel(Dom.SYN).has(Dom.Syn.V.CLASS, "BlockStatementContext")
+             .outE(Dom.SEM)
+             .or(
+                __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.STATEMENT),
+                __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.NEST))
+             .order().by(Dom.Cfg.E.ORD, Order.asc)
+             .inV()
+             .sideEffect(t -> ((BulkSet<Vertex>) t.sideEffects("r")).clear())
+             .sideEffect(
+                 __.as("b")
+                   .flatMap(__.cap("r").unfold()) // cuts traversal if r empty
+                   .optional(__.outE(Dom.SEM).has(Dom.Sem.ROLE, Dom.Sem.Role.Control.RETURN).inV())
+                   .addE(Dom.CFG).from("b")
+                   .property(Dom.Cfg.E.ROLE, Dom.Cfg.E.Role.FLOW)
+                   .sideEffect(GremlinUtils.setEdgeOrd())
+                   .select("b")
+                   .aggregate("r"))
+             .iterate();
+
         }
     }
 
