@@ -171,7 +171,7 @@ public class GraphUtils {
     Path dotPath = null;
     dotPath = Paths.get(FilenameUtils.removeExtension(graphmlPath.toString()) + ".dot");
     TransformerFactory factory = new net.sf.saxon.TransformerFactoryImpl();
-    Source xslt = new StreamSource(new File("graphml2dot.xsl"));
+    Source xslt = new StreamSource(new File(AntlrP4.GRAPHML2DOT_XSL));
     Transformer transformer = factory.newTransformer(xslt);
     Source text = new StreamSource(graphmlPath.toFile());
     transformer.transform(text, new StreamResult(dotPath.toFile()));

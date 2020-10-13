@@ -5,6 +5,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.PrintWriter;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -31,10 +32,18 @@ import parser.p4.*;
 
 public class AntlrP4 {
 
+    private static final ClassLoader loader = Thread.currentThread().getContextClassLoader();
+    public static final String GRAPHML2DOT_XSL = loader.getResource("graphml2dot.xsl").getPath().toString();
+    public static final String EX1_P4 = loader.getResource("ex1.p4").getPath().toString();
+    public static final String CORE_P4 = loader.getResource("core.p4").getPath().toString();
+    public static final String V1MODEL_P4 = loader.getResource("v1model.p4").getPath().toString();
 
     // TODO formalize the analysis dependencies: https://github.com/j-easy/easy-flows
     public static void main(String[] args) throws IOException, ParserConfigurationException, TransformerException,
             InterruptedException {
+
+                System.out.println(new File(EX1_P4).exists());
+                System.out.println(new File(EX1_P4).exists());
 
 // // query printing
 //        File f = File. createTempFile("query", ".tex");
@@ -49,15 +58,19 @@ public class AntlrP4 {
 //      org.antlr.v4.Tool.main(new String[]{"-visitor", "-o", "hmm/src/main/java/hmm/p4", "-package", "hmm.p4", "P4.g4"});
 
 //  // To parse without resolving includes:
-//        CharStream stream = CharStreams.fromFileName("ex1.p4");
+//        CharStream stream = CharStreams.fromFileName(PATH_PREFIX + "ex1.p4");
 //        P4Lexer lexer  = new P4Lexer(stream);   
 
         // Using C preprocessor to resolve includes. 
         // JCPP-Antlr integration from here: https://stackoverflow.com/a/25358397
         // Note that includes are huge, they slow down everything, and many things can be analysed without them.
-        Preprocessor pp = new Preprocessor(new File("ex1.p4"));
+        Preprocessor pp = new Preprocessor(new File(EX1_P4));
         List<String> systemInclude = new ArrayList<String>();
-        systemInclude.add(".");            
+        if(!new File(CORE_P4).getParent().equals(new File(V1MODEL_P4).getParent()))
+                throw new IllegalStateException("!new File(CORE_P4).getParent().equals(new File(V1MODEL_P4).getParent())");
+        systemInclude.add(new File(CORE_P4).getParent());            
+
+        // systemInclude.add(V1MODEL_P4);            
         pp.setSystemIncludePath(systemInclude);
         
         P4Lexer lexer = new P4Lexer(CharStreams.fromReader(new CppReader(pp)));
