@@ -1,0 +1,7 @@
+<project name="xyz-analysis" default="test" basedir="."> 
+
+    <target name="xyz-analysis">
+        <echo message="xyz-analysis DONE"/>
+    </target>
+
+</project>

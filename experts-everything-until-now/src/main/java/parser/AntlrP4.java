@@ -42,9 +42,6 @@ public class AntlrP4 {
     public static void main(String[] args) throws IOException, ParserConfigurationException, TransformerException,
             InterruptedException {
 
-                System.out.println(new File(EX1_P4).exists());
-                System.out.println(new File(EX1_P4).exists());
-
 // // query printing
 //        File f = File. createTempFile("query", ".tex");
 //        PrintStream ps = new PrintStream(f);

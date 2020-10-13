@@ -1,0 +1,29 @@
+<project name="testproject" default="test" basedir="."> 
+
+    <!--
+    <echo> ${java.class.path} </echo>
+    -->
+
+    <import>
+    <javaresource name="xyz-analysis.xml">
+        <classpath/>
+    </javaresource>
+    </import>
+    <target name="test1" depends="xyz-analysis">  
+        <echo message="${myProp}" /> 
+    </target>
+
+    <import>
+    <javaresource name="everything-until-now.xml">
+        <classpath/>
+    </javaresource>
+    </import>
+
+    <target name="test2" depends="everything-until-now">  
+        <echo message="${myProp}" /> 
+    </target>
+
+    <target name="test" depends="test1, test2">  
+        <echo message="done" /> 
+    </target>
+</project>
