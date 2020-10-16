@@ -17,9 +17,11 @@
  * under the License.
  */
 
-//# This is 'tinkerpop/gremlin-server/scripts/empty-sample.groovy' 
+//# This is a modification of 'tinkerpop/gremlin-server/scripts/empty-sample.groovy' 
 //#   downloaded from https://github.com/apache/tinkerpop/commit/06498eaa418e8cd1779cc421ad30f2f33899f2b3
 
+import org.apache.tinkerpop.gremlin.process.traversal.step.util.event.*
+import p4analyser.blackboard.P4KnowledgeGraphMutationListener;
 
 // An example of an initialization script that can be configured to run in Gremlin Server.
 // Functions defined here will go into global cache and will not be removed from there
@@ -46,4 +48,11 @@ globals << [hook : [
 // in 3.4.0 to make all Gremlin Server results consistent across all protocols and
 // serialization formats aligning it with TinkerPop recommended practices for writing
 // Gremlin.
-globals << [g : graph.traversal().withStrategies(ReferenceElementStrategy.instance())]
+
+globals << [g : graph.traversal()
+                     .withStrategies(
+                       ReferenceElementStrategy.instance(), 
+                       EventStrategy.build()
+                                    .addListener(new P4KnowledgeGraphMutationListener(graph))
+//                                  .addListener(new ConsoleMutationListener(graph))
+                                    .create())]

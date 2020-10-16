@@ -6,6 +6,7 @@ import org.apache.commons.configuration.Configuration;
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
 import org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.structure.Vertex;
 
 /**
  * Hello world!
@@ -20,8 +21,23 @@ public class App
         String remoteTraversalSourceName = args[2];
 
         App app = new App(host, port, remoteTraversalSourceName);
+        Vertex v1 = app.g.addV("hello").property("a", 123).next();
+        Vertex v2 = app.g.addV("hello").property("b", 123).next();
+        Vertex v3 = app.g.addV("szia").property("b", 123).next();
+        app.g.addE("alma").to(v1).from(v2).iterate();
+        app.g.addE("alma").to(v1).from(v2).iterate();
+        app.g.addE("alma").to(v2).from(v1).iterate();
         System.out.println(app.g.V().toList());
+//        app.g.getGraph().configuration().setProperty("bond", "james bond");
+//        System.out.println(app.g.getGraph().configuration().getProperty("bond"));
         app.close();
+
+        app = new App(host, port, remoteTraversalSourceName);
+        System.out.println(app.g.V().toList());
+//        System.out.println(app.g.getGraph().configuration().getProperty("bond"));
+
+        System.out.println(app.g.E().properties().toList());
+        System.out.println(app.g.V().properties().toList());
     }
 
     private GraphTraversalSource g;
