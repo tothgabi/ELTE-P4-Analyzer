@@ -33,6 +33,15 @@ public class LocalGremlinServer {
     public void close(){
         bb.close();
     }
+    
+    // NOTE: The paths start with a "/". In windows it is a problem, we need to cut it out.
+    private void rightPaths() {
+        if (isWindows) {
+            GREMLIN_SERVER_CONF_PATH = GREMLIN_SERVER_CONF_PATH.substring(1);
+            TINKERGRAPH_EMPTY_PROPERTIES_PATH = TINKERGRAPH_EMPTY_PROPERTIES_PATH.substring(1);
+            EMPTY_SAMPLE_GROOVY_PATH = EMPTY_SAMPLE_GROOVY_PATH.substring(1);
+        }
+    }
 
     // NOTE: GremlinServer does not seem to substitute "classpath:" inside the YAML, so we have to include the path manually
     private void updateServerConfig() {
@@ -42,8 +51,16 @@ public class LocalGremlinServer {
         String content;
         try {
             content = new String(Files.readAllBytes(path), charset);
-            content = content.replaceAll("TINKERGRAPH_EMPTY_PROPERTIES", TINKERGRAPH_EMPTY_PROPERTIES_PATH);
-            content = content.replaceAll("EMPTY_SAMPLE_GROOVY", EMPTY_SAMPLE_GROOVY_PATH);
+            
+            //In windows we need these: ""
+            if (isWindows) {
+                content = content.replaceAll("TINKERGRAPH_EMPTY_PROPERTIES", "\"" + TINKERGRAPH_EMPTY_PROPERTIES_PATH + "\"");
+                content = content.replaceAll("EMPTY_SAMPLE_GROOVY", "\"" + EMPTY_SAMPLE_GROOVY_PATH + "\"");
+            } else {
+                content = content.replaceAll("TINKERGRAPH_EMPTY_PROPERTIES", TINKERGRAPH_EMPTY_PROPERTIES_PATH);
+                content = content.replaceAll("EMPTY_SAMPLE_GROOVY", EMPTY_SAMPLE_GROOVY_PATH);
+            }
+            
             Files.write(path, content.getBytes(charset));
 //            System.out.println(Files.lines(Paths.get(GREMLIN_SERVER_CONF_PATH)).collect(Collectors.toList()));
         } catch (IOException e1) {
