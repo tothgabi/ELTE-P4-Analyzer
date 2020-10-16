@@ -7,6 +7,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
+import org.apache.commons.lang3.SystemUtils;
+
 // NOTE For future reference, this guide was helpful: http://emehrkay.com/getting-started-with-tinkerpop-s-gremlin-server-and-gizmo-python
 // NOTE The official way would have been to use gremlin-server.sh or gremlin-server.bat.
 
@@ -23,8 +25,10 @@ public class LocalGremlinServer {
     public int port = 8182;
     public String remoteTraversalSourceName = "g";
 
+    private Boolean isWindows = SystemUtils.OS_NAME.contains("Windows");
     private p4analyser.blackboard.App bb = null;
     public void start(){
+        rightPaths();
         updateServerConfig();
         bb = new p4analyser.blackboard.App(new String[] { "-c", GREMLIN_SERVER_CONF_PATH });
         bb.start();
