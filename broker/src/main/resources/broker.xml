@@ -10,7 +10,6 @@
     </javaresource>
     </import>
     <target name="test1" depends="xyz-analysis">  
-        <echo message="${myProp}" /> 
     </target>
 
     <import>
@@ -24,6 +23,5 @@
     </target>
 
     <target name="test" depends="test1, test2">  
-        <echo message="done" /> 
     </target>
 </project>

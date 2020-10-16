@@ -1,7 +1,11 @@
 <project name="xyz-analysis" default="test" basedir="."> 
 
     <target name="xyz-analysis">
-        <echo message="xyz-analysis DONE"/>
+        <java classname="p4analyser.experts.demo.App"> 
+            <arg value="${host}"/>
+            <arg value="${port}"/>
+            <arg value="${remoteTraversalSourceName}"/>
+        </java>
     </target>
 
 </project>

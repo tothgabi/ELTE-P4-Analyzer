@@ -1,7 +1,9 @@
 <project name="everything-until-now" default="test" basedir="."> 
     <target name="everything-until-now">
-        <java classname="parser.AntlrP4">
+        <!-- <java classname="parser.AntlrP4">
         </java>
+        -->
+        <echo message="OK"></echo>
     </target>
 
 </project>
