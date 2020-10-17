@@ -32,7 +32,7 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
 
 import net.sf.saxon.exslt.Date;
-import parser.p4.P4Parser.ConditionalStatementContext;
+import p4analyser.ontology.Dom;
 
 public class ControlFlowAnalysis {
 
@@ -40,6 +40,16 @@ public class ControlFlowAnalysis {
     // TODO 1-way conditionals produce partial CFG now. this should be handled either as a separate case, or by normalizing the syntax tree.
     // TODO braceless conditionals are not handled now. normalize the syntax tree.
     public static void analyse(GraphTraversalSource g) {
+// // query printing
+//        File f = File. createTempFile("query", ".tex");
+//        PrintStream ps = new PrintStream(f);
+//        ControlFlowAnalysis.Control3.printQuery(ps);
+//        System.out.println("query printed to " + f.getAbsolutePath());
+//        ps.close();
+//        System.exit(0);
+
+
+
         g.addV(Dom.CFG).iterate();
 
         findEntryExit(g);

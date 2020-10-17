@@ -1,4 +1,4 @@
-package parser;
+package p4analyser.experts.syntaxtree;
 
 import java.io.File;
 
@@ -18,7 +18,7 @@ import org.antlr.v4.runtime.tree.TerminalNode;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
-import parser.p4.P4BaseVisitor;
+import p4analyser.experts.syntaxtree.p4.P4BaseVisitor;
 
 public class XMLParseTree {
     public static void toFile(Document doc, String path, boolean prettyPrint) throws TransformerException {

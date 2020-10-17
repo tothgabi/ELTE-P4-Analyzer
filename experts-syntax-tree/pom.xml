@@ -8,10 +8,10 @@
   </parent>
 
   <groupId>p4analyser</groupId>
-  <artifactId>broker</artifactId>
+  <artifactId>experts-syntax-tree</artifactId>
   <version>1.0-SNAPSHOT</version>
 
-  <name>broker</name>
+  <name>experts-syntaxtree</name>
   <!-- FIXME change it to the project's website -->
   <url>http://www.example.com</url>
 
@@ -22,37 +22,83 @@
   </properties>
 
   <dependencies>
+
+
+
+      <dependency>
+        <groupId>org.anarres</groupId>
+        <artifactId>jcpp</artifactId>
+        <version>1.4.14</version>
+      </dependency>
+
+        <dependency>
+          <groupId>org.antlr</groupId>
+          <artifactId>antlr4</artifactId>
+          <version>4.8-1</version>
+        </dependency>
     <dependency>
-      <groupId>org.apache.ant</groupId>
-      <artifactId>ant</artifactId>
-      <version>1.10.9</version>
+      <groupId>org.antlr</groupId>
+      <artifactId>antlr4-runtime</artifactId>
+      <version>4.8-1</version>
+    </dependency>
+
+
+        <dependency>
+          <groupId>net.sf.saxon</groupId>
+          <artifactId>saxon-dom</artifactId>
+          <version>8.7</version>
+        </dependency>
+
+
+        <dependency>
+          <groupId>net.sf.saxon</groupId>
+          <artifactId>saxon</artifactId>
+          <version>8.7</version>
+        </dependency>
+
+
+        <dependency>
+          <groupId>p4analyser</groupId>
+          <artifactId>ontology</artifactId>
+          <version>1.0-SNAPSHOT</version>
+        </dependency>
+
+    <dependency>
+        <groupId>com.tinkerpop.gremlin</groupId>
+        <artifactId>gremlin-java</artifactId>
+        <version>2.6.0</version>
     </dependency>
 
     <dependency>
-      <groupId>p4analyser</groupId>
-      <artifactId>blackboard</artifactId>
-      <version>1.0-SNAPSHOT</version>
+        <groupId>com.tinkerpop.gremlin</groupId>
+        <artifactId>gremlin</artifactId>
+        <version>2.6.0</version>
+        <type>pom</type>
     </dependency>
 
     <dependency>
-      <groupId>p4analyser</groupId>
-      <artifactId>experts-everything-until-now</artifactId>
-      <version>1.0-SNAPSHOT</version>
-      <scope>runtime</scope>
+        <groupId>org.apache.tinkerpop</groupId>
+        <artifactId>gremlin-driver</artifactId>
+        <version>3.4.4</version>
+        <type>jar</type>
     </dependency>
 
     <dependency>
-      <groupId>p4analyser</groupId>
-      <artifactId>experts-syntax-tree</artifactId>
-      <version>1.0-SNAPSHOT</version>
-      <scope>runtime</scope>
+        <groupId>org.apache.tinkerpop</groupId>
+        <artifactId>gremlin-core</artifactId>
+        <version>3.4.4</version>
+        <type>jar</type>
     </dependency>
-
     <dependency>
-      <groupId>p4analyser</groupId>
-      <artifactId>experts-demo</artifactId>
-      <version>1.0-SNAPSHOT</version>
-      <scope>runtime</scope>
+        <groupId>org.apache.tinkerpop</groupId>
+        <artifactId>tinkerpop</artifactId>
+        <version>3.4.4</version>
+        <type>pom</type>
+    </dependency>
+    <dependency>
+        <groupId>org.apache.tinkerpop</groupId>
+        <artifactId>tinkergraph-gremlin</artifactId>
+        <version>3.4.4</version>
     </dependency>
 
     <dependency>
@@ -64,9 +110,35 @@
   </dependencies>
 
   <build>
+    <plugins>
+        <plugin>
+          <groupId>org.antlr</groupId>
+          <artifactId>antlr4-maven-plugin</artifactId>
+          <version>4.8-1</version>
+        </plugin>
+    </plugins>
 
     <pluginManagement><!-- lock down plugins versions to avoid using Maven defaults (may be moved to parent pom) -->
       <plugins>
+
+        <plugin>
+          <groupId>org.antlr</groupId>
+          <artifactId>antlr4-maven-plugin</artifactId>
+          <version>4.8-1</version>
+          <configuration>
+<!--              <outputDirectory>src/main/java/p4analyser/experts/syntaxtree/p4</outputDirectory> -->
+              <visitor> true </visitor>
+          </configuration>
+          <executions>
+            <execution>
+              <id>antlr</id>
+              <goals>
+                <goal>antlr4</goal>
+              </goals>
+            </execution>
+          </executions>
+        </plugin>
+
         <!-- clean lifecycle, see https://maven.apache.org/ref/current/maven-core/lifecycles.html#clean_Lifecycle -->
         <plugin>
           <artifactId>maven-clean-plugin</artifactId>

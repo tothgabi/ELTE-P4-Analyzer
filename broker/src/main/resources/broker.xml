@@ -1,16 +1,9 @@
-<project name="testproject" default="test" basedir="."> 
-
-    <!--
-    <echo> ${java.class.path} </echo>
-    -->
-
+<project name="broker" default="run" basedir="."> 
     <import>
-    <javaresource name="xyz-analysis.xml">
+    <javaresource name="xyz.xml">
         <classpath/>
     </javaresource>
     </import>
-    <target name="test1" depends="xyz-analysis">  
-    </target>
 
     <import>
     <javaresource name="everything-until-now.xml">
@@ -18,10 +11,16 @@
     </javaresource>
     </import>
 
-    <target name="test2" depends="everything-until-now">  
-        <echo message="${myProp}" /> 
-    </target>
+    <import>
+    <javaresource name="syntax-tree.xml">
+        <classpath/>
+    </javaresource>
+    </import>
 
-    <target name="test" depends="test1, test2">  
+    <extension-point name="xyz" depends=""/>
+    <extension-point name="syntax-tree" depends="xyz"/>
+    <extension-point name="everything-until-now" depends="syntax-tree"/>
+
+    <target name="run" depends="everything-until-now">  
     </target>
 </project>

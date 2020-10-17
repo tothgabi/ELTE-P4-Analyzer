@@ -1,6 +1,6 @@
-<project name="everything-until-now" default="test" basedir="."> 
-    <target name="everything-until-now-analysis" extensionOf="everything-until-now">
-        <java classname="parser.AntlrP4">
+<project name="p4parser" default="test" basedir="."> 
+    <target name="p4parser" extensionOf="syntax-tree">
+        <java classname="p4analyser.experts.syntaxtree.AntlrP4">
             <arg value="${host}"/>
             <arg value="${port}"/>
             <arg value="${remoteTraversalSourceName}"/>

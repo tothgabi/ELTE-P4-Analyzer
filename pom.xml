@@ -12,6 +12,8 @@
     <module>blackboard</module>
     <module>experts-everything-until-now</module>
     <module>experts-demo</module>
+    <module>experts-syntax-tree</module>
+    <module>ontology</module>
   </modules>
 
   <name>p4analyser</name>

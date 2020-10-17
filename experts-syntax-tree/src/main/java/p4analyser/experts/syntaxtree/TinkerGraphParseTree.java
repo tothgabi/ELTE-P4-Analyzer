@@ -1,4 +1,4 @@
-package parser;
+package p4analyser.experts.syntaxtree;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -20,8 +20,10 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
 import org.w3c.dom.Element;
 
-import parser.p4.P4BaseListener;
-import parser.p4.P4BaseVisitor;
+import p4analyser.experts.syntaxtree.p4.P4BaseListener;
+import p4analyser.experts.syntaxtree.p4.P4BaseVisitor;
+
+import p4analyser.ontology.Dom;
 
 public class TinkerGraphParseTree {
     public static void fromParseTree(GraphTraversalSource g, ParseTree tree, Vocabulary vocab, String[] ruleNames) {

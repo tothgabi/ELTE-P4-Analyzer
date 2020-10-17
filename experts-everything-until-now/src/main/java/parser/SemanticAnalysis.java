@@ -16,6 +16,8 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.util.function.Lambda;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.BulkSet;
 
+import p4analyser.ontology.Dom;
+
 // TODO idea: method that execute queries should be named questions (whoUsesDeclaredVariable)
 // TODO another idea: method should be named based on the edge it adds (but what about complex methods)
 // TODO idea: documentation of each query should describe a precondition (what structures are traversed) and a postcondition (how is the syntax tree modified)

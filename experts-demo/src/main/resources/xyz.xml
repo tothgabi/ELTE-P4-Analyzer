@@ -1,6 +1,6 @@
 <project name="xyz-analysis" default="test" basedir="."> 
 
-    <target name="xyz-analysis">
+    <target name="xyz-analysis" extensionOf="xyz">
         <java classname="p4analyser.experts.demo.App"> 
             <arg value="${host}"/>
             <arg value="${port}"/>

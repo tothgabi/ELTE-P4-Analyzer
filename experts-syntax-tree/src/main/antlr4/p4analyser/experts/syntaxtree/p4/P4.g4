@@ -1,5 +1,6 @@
 // https://github.com/fattaholmanan/p4-vscode-extension/blob/master/grammar/P4.g4
 
+
 grammar P4;
 
 start : program;
@@ -960,3 +961,4 @@ fragment HEX_INTEGER_WITH			: [0-9]+[ws]'0'[xX][0-9a-fA-F_]+ ;
 fragment DEC_INTEGER_WITH			: [0-9]+[ws]'0'[dD][0-9_]+ | [0-9]+[ws][0-9_]+;
 fragment OCT_INTEGER_WITH			: [0-9]+[ws]'0'[oO][0-7_]+ ;
 fragment BI_INTEGER_WITH 			: [0-9]+[ws]'0'[bB][01_]+ ;
+

@@ -4,6 +4,8 @@ import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSo
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 
+import p4analyser.ontology.Dom;
+
 public class Normalisation {
     // NOTE this is controversial, because it breaks 1-1 mapping between code and syntax tree.
     public static void analyse(GraphTraversalSource g){
