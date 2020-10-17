@@ -1,8 +1,11 @@
 <project name="everything-until-now" default="test" basedir="."> 
     <target name="everything-until-now">
-        <!-- <java classname="parser.AntlrP4">
+        <java classname="parser.AntlrP4">
+            <arg value="${host}"/>
+            <arg value="${port}"/>
+            <arg value="${remoteTraversalSourceName}"/>
         </java>
-        -->
+        
         <echo message="OK"></echo>
     </target>
 

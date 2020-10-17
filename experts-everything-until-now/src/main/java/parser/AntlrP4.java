@@ -22,9 +22,12 @@ import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.TokenStream;
 import org.antlr.v4.runtime.tree.ParseTree;
+import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
+import org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Graph;
+import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
 
 import parser.GraphUtils.Label;
@@ -41,6 +44,12 @@ public class AntlrP4 {
     // TODO formalize the analysis dependencies: https://github.com/j-easy/easy-flows
     public static void main(String[] args) throws IOException, ParserConfigurationException, TransformerException,
             InterruptedException {
+
+
+        String host = args[0];
+        int port = Integer.parseInt(args[1]);
+        String remoteTraversalSourceName = args[2];
+
 
 // // query printing
 //        File f = File. createTempFile("query", ".tex");
@@ -80,55 +89,66 @@ public class AntlrP4 {
 //        displayNativeAntlrTree(parser, tree);
 //        antlrParseTreeToXML(tree);
 
-        Graph graph = null;
+//        Graph graph = TinkerGraph.open();
+//        GraphTraversalSource g = graph.traversal();
+        GraphTraversalSource g = 
+            AnonymousTraversalSource
+                    .traversal()
+                    .withRemote(DriverRemoteConnection.using(host, port, remoteTraversalSourceName));
 
-        graph = TinkerGraphParseTree.fromParseTree(tree, lexer.getVocabulary(), parser.getRuleNames());
-//        printSyntaxTree(graph);
-
-
-        Normalisation.analyse(graph);
-        GremlinUtils.resetNodeIds(graph, Dom.SYN);
-//        printSyntaxTree(graph);
-
-
-        SemanticAnalysis.analyse(graph);
-//        printSemanticGraph(graph);
-
-//        printSymbol(graph);
-//        printCalls(graph);
-//        printCallSites(graph);
+        TinkerGraphParseTree.fromParseTree(g, tree, lexer.getVocabulary(), parser.getRuleNames());
+//        printSyntaxTree(g);
 
 
-        ControlFlowAnalysis.analyse(graph);
+//      TODO Normalisation introduces new nodes mid-tree. If we need 
+//           node numbering to follow depth-first order, then node ids have to 
+//           be reseted. This should be possible to do on client-side, 
+//           but it is not very important so I left it for later.
+//           Find the original in p4analysis/experts-everything-until-now/src/main/java/parser/GremlinUtils.java 
+//           https://github.com/daniel-lukacs/p4analysis/commit/5852c715060ecfcb22397120f9a588a3a7721848
 
-        printCfg(graph);
-//        ExternControlFlow.analyse(graph);
+//        Normalisation.analyse(g);
+//        GremlinUtils.resetNodeIds(g, Dom.SYN);
+
+//        printSyntaxTree(g);
+
+
+        SemanticAnalysis.analyse(g);
+//        printSemanticGraph(g);
+
+        printSymbol(g);
+        printCalls(g);
+//        printCallSites(g);
+
+
+//      TODO not migrated yet to gremlin-server
+//        ControlFlowAnalysis.analyse(g);
+//        printCfg(g);
     }
 
 
-    public static void printSyntaxTree(Graph graph) throws IOException, TransformerException, InterruptedException {
-        GraphUtils.printGraph(GraphUtils.subgraph(graph, Label.SYN), "proba", true, GraphUtils.Extension.SVG);
+    public static void printSyntaxTree(GraphTraversalSource g) throws IOException, TransformerException, InterruptedException {
+        GraphUtils.printGraph(GraphUtils.subgraph(g, Label.SYN), "proba", true, GraphUtils.Extension.SVG);
     }
-    public static void printSemanticGraph(Graph graph) throws IOException, TransformerException, InterruptedException {
-        GraphUtils.printGraph(GraphUtils.subgraph(graph, Label.SEM), "proba", true, GraphUtils.Extension.SVG);
+    public static void printSemanticGraph(GraphTraversalSource g) throws IOException, TransformerException, InterruptedException {
+        GraphUtils.printGraph(GraphUtils.subgraph(g, Label.SEM), "proba", true, GraphUtils.Extension.SVG);
     }
-    public static void printCfg(Graph graph) throws IOException, TransformerException, InterruptedException {
-        GraphUtils.printGraph(GraphUtils.subgraph(graph, Label.CFG), "proba", true, GraphUtils.Extension.SVG);
+    public static void printCfg(GraphTraversalSource g) throws IOException, TransformerException, InterruptedException {
+        GraphUtils.printGraph(GraphUtils.subgraph(g, Label.CFG), "proba", true, GraphUtils.Extension.SVG);
     }
-    public static void printSymbol(Graph graph) throws IOException, TransformerException, InterruptedException {
-        GraphUtils.printGraph(GraphUtils.subgraph(graph, Label.SYMBOL), "proba", true, GraphUtils.Extension.SVG);
+    public static void printSymbol(GraphTraversalSource g) throws IOException, TransformerException, InterruptedException {
+        GraphUtils.printGraph(GraphUtils.subgraph(g, Label.SYMBOL), "proba", true, GraphUtils.Extension.SVG);
     }
-    public static void printCalls(Graph graph) throws IOException, TransformerException, InterruptedException {
-        GraphUtils.printGraph(GraphUtils.subgraph(graph, Label.CALL), "proba", true, GraphUtils.Extension.SVG);
+    public static void printCalls(GraphTraversalSource g) throws IOException, TransformerException, InterruptedException {
+        GraphUtils.printGraph(GraphUtils.subgraph(g, Label.CALL), "proba", true, GraphUtils.Extension.SVG);
     }
-    public static void printCallSites(Graph graph) throws IOException, TransformerException, InterruptedException {
-        GraphUtils.printGraph(GraphUtils.subgraph(graph, Label.SITES), "proba", true, GraphUtils.Extension.SVG);
+    public static void printCallSites(GraphTraversalSource g) throws IOException, TransformerException, InterruptedException {
+        GraphUtils.printGraph(GraphUtils.subgraph(g, Label.SITES), "proba", true, GraphUtils.Extension.SVG);
     }
 
     private static void displayNativeAntlrTree(P4Parser parser, ParseTree tree) {
         //show AST in GUI
-        TreeViewer viewer = new TreeViewer(
-            Arrays.asList(parser.getRuleNames()),tree);
+        TreeViewer viewer = new TreeViewer( Arrays.asList(parser.getRuleNames()),tree);
         viewer.open();
 
         //show AST in console (LISP)
@@ -186,4 +206,5 @@ public class AntlrP4 {
 //          System.out.print("{ ipv4_lpm.apply(); }");
 //        }
 //    }
+
 }

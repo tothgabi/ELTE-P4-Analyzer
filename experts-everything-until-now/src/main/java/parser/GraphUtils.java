@@ -56,34 +56,40 @@ public class GraphUtils {
     }
 
     // includes all vertices and all edges. moreover includes those vertices that don't have the label but are incident with edges that do have it.
-    public static TinkerGraph subgraph(Graph graph, Label... labels0){
+    public static TinkerGraph subgraph(GraphTraversalSource g0, Label... labels0){
         String firstLab = labels0[0].toString().toLowerCase();
         String[] labels = Arrays.stream(labels0).skip(1).map(lab -> lab.toString().toLowerCase()).toArray(String[]::new);
-        List<Vertex> vs = graph.traversal().V().hasLabel(firstLab, labels).toList();
-        List<Edge> es = graph.traversal().E().hasLabel(firstLab, labels).toList();
+        List<Vertex> vs = g0.V().hasLabel(firstLab, labels).toList();
+        List<Edge> es = g0.E().hasLabel(firstLab, labels).toList();
 
         TinkerGraph newGraph = TinkerGraph.open();
         GraphTraversalSource g = newGraph.traversal();
         for (Vertex v : vs) {
-            copyProperties(g.addV(v.label()), v).iterate();
+            copyProperties(g.addV(v.label()), g0, v).iterate();
         }
         for (Edge e : es) {
             Vertex inVertex = e.inVertex();
             Vertex outVertex = e.outVertex();
             if(g.V(inVertex.id()).toList().isEmpty()) 
-                inVertex = copyProperties(g.addV(inVertex.label()), inVertex).next();
+                inVertex = copyProperties(g.addV(inVertex.label()), g0, inVertex).next();
             if(g.V(outVertex.id()).toList().isEmpty()) 
-                outVertex = copyProperties(g.addV(outVertex.label()), outVertex).next();
+                outVertex = copyProperties(g.addV(outVertex.label()), g0, outVertex).next();
 
-            copyProperties(g.V(outVertex.id()).addE(e.label()).to(inVertex), e).iterate();
+            copyProperties(g.V(outVertex.id()).addE(e.label()).to(inVertex), g0, e).iterate();
         }
 
         return newGraph;
     }
 
-    private static <E extends Element> GraphTraversal<?, E> copyProperties(GraphTraversal<?, E> t, E v){
-        ArrayList<Property<?>> props = new ArrayList<>();
-        v.properties().forEachRemaining(props::add);
+    private static <E extends Element> GraphTraversal<?, E> copyProperties(GraphTraversal<?, E> t, GraphTraversalSource g0, E v){
+//        ArrayList<Property<?>> props = new ArrayList<>();
+//        v.properties().forEachRemaining(props::add);
+        List<? extends Property<Object>> props = null;
+        if(v instanceof Vertex)
+            props = g0.V(v).properties().toList();
+        if(v instanceof Edge)
+            props = g0.E(v).properties().toList();
+
         t = t.property(T.id, v.id());
         for(Property<?> p : props){
             t.property(p.key(), p.value());
