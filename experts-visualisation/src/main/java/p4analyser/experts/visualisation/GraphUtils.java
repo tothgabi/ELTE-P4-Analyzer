@@ -1,4 +1,4 @@
-package parser;
+package p4analyser.experts.visualisation;
 
 import javax.xml.transform.Source;
 import javax.xml.transform.Transformer;
@@ -39,6 +39,9 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 public class GraphUtils {
+
+    private static final ClassLoader loader = Thread.currentThread().getContextClassLoader();
+    public static final String GRAPHML2DOT_XSL = loader.getResource("graphml2dot.xsl").getPath().toString();
 
     // TODO this is redundant. eliminate it and use the names in Dom
     public static enum Label {
@@ -177,7 +180,7 @@ public class GraphUtils {
     Path dotPath = null;
     dotPath = Paths.get(FilenameUtils.removeExtension(graphmlPath.toString()) + ".dot");
     TransformerFactory factory = new net.sf.saxon.TransformerFactoryImpl();
-    Source xslt = new StreamSource(new File(AntlrP4.GRAPHML2DOT_XSL));
+    Source xslt = new StreamSource(new File(GRAPHML2DOT_XSL));
     Transformer transformer = factory.newTransformer(xslt);
     Source text = new StreamSource(graphmlPath.toFile());
     transformer.transform(text, new StreamResult(dotPath.toFile()));

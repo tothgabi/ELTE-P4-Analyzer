@@ -1,0 +1,12 @@
+<project name="symbol-table-expert" default="test" basedir="."> 
+    <target name="symbol-table-implem" extensionOf="symbol-table">
+        <java classname="p4analyser.experts.symboltable.SymbolTable">
+            <arg value="${host}"/>
+            <arg value="${port}"/>
+            <arg value="${remoteTraversalSourceName}"/>
+        </java>
+        
+        <echo message="OK"></echo>
+    </target>
+
+</project>

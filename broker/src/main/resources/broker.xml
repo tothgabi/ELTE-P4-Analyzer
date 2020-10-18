@@ -17,10 +17,31 @@
     </javaresource>
     </import>
 
+    <import>
+    <javaresource name="symbol-table.xml">
+        <classpath/>
+    </javaresource>
+    </import>
+
+    <import>
+    <javaresource name="call-graph.xml">
+        <classpath/>
+    </javaresource>
+    </import>
+
+    <import>
+    <javaresource name="visualisation.xml">
+        <classpath/>
+    </javaresource>
+    </import>
+
     <extension-point name="xyz" depends=""/>
     <extension-point name="syntax-tree" depends="xyz"/>
     <extension-point name="everything-until-now" depends="syntax-tree"/>
+    <extension-point name="symbol-table" depends="everything-until-now"/>
+    <extension-point name="call-graph" depends="everything-until-now, symbol-table"/>
+    <extension-point name="visualisation" depends="syntax-tree, everything-until-now, symbol-table, call-graph"/>
 
-    <target name="run" depends="everything-until-now">  
+    <target name="run" depends="syntax-tree, everything-until-now, symbol-table, call-graph, visualisation">  
     </target>
 </project>

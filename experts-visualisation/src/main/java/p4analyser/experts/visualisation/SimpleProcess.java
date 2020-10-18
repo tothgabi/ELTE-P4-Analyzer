@@ -1,4 +1,4 @@
-package parser;
+package p4analyser.experts.visualisation;
 
 import java.io.IOException;
 import java.nio.file.Path;

@@ -31,7 +31,6 @@ import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
 
-import net.sf.saxon.exslt.Date;
 import p4analyser.ontology.Dom;
 
 public class ControlFlowAnalysis {
