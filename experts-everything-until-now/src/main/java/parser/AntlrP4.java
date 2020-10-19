@@ -31,10 +31,6 @@ public class AntlrP4 {
 //        Normalisation.analyse(g);
 //        GremlinUtils.resetNodeIds(g, Dom.SYN);
 
-
-
-        SemanticAnalysis.analyse(g);
-
 //      TODO not migrated yet to gremlin-server
 //        ControlFlowAnalysis.analyse(g);
     }

@@ -1,6 +1,6 @@
 <project name="broker" default="run" basedir="."> 
     <import>
-    <javaresource name="xyz.xml">
+    <javaresource name="demo.xml">
         <classpath/>
     </javaresource>
     </import>
@@ -13,6 +13,12 @@
 
     <import>
     <javaresource name="syntax-tree.xml">
+        <classpath/>
+    </javaresource>
+    </import>
+
+    <import>
+    <javaresource name="aliases.xml">
         <classpath/>
     </javaresource>
     </import>
@@ -35,13 +41,15 @@
     </javaresource>
     </import>
 
-    <extension-point name="xyz" depends=""/>
-    <extension-point name="syntax-tree" depends="xyz"/>
-    <extension-point name="everything-until-now" depends="syntax-tree"/>
-    <extension-point name="symbol-table" depends="everything-until-now"/>
-    <extension-point name="call-graph" depends="everything-until-now, symbol-table"/>
-    <extension-point name="visualisation" depends="syntax-tree, everything-until-now, symbol-table, call-graph"/>
+    <extension-point name="demo" depends=""/>
+    <extension-point name="syntax-tree" depends="demo"/>
+    <extension-point name="aliases" depends="syntax-tree"/>
+    <extension-point name="symbol-table" depends="aliases"/>
+    <extension-point name="call-graph" depends="aliases, symbol-table"/>
+    <extension-point name="everything-until-now" depends="symbol-table, aliases, syntax-tree"/>
+    <extension-point name="visualisation" depends="syntax-tree, aliases, symbol-table, call-graph"/>
 
-    <target name="run" depends="syntax-tree, everything-until-now, symbol-table, call-graph, visualisation">  
+
+    <target name="run" depends="visualisation">  
     </target>
 </project>

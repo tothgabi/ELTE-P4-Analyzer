@@ -8,81 +8,53 @@
   </parent>
 
   <groupId>p4analyser</groupId>
-  <artifactId>broker</artifactId>
+  <artifactId>experts-aliases</artifactId>
   <version>1.0-SNAPSHOT</version>
 
-  <name>broker</name>
+  <name>experts-aliases</name>
   <!-- FIXME change it to the project's website -->
   <url>http://www.example.com</url>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <maven.compiler.source>1.8</maven.compiler.source>
-    <maven.compiler.target>1.8</maven.compiler.target>
+    <maven.compiler.source>1.7</maven.compiler.source>
+    <maven.compiler.target>1.7</maven.compiler.target>
   </properties>
 
   <dependencies>
     <dependency>
-      <groupId>org.apache.ant</groupId>
-      <artifactId>ant</artifactId>
-      <version>1.10.9</version>
+        <groupId>p4analyser</groupId>
+        <artifactId>ontology</artifactId>
+        <version>1.0-SNAPSHOT</version>
     </dependency>
 
     <dependency>
-      <groupId>p4analyser</groupId>
-      <artifactId>blackboard</artifactId>
-      <version>1.0-SNAPSHOT</version>
+        <groupId>com.tinkerpop.gremlin</groupId>
+        <artifactId>gremlin-java</artifactId>
+        <version>2.6.0</version>
     </dependency>
 
     <dependency>
-      <groupId>p4analyser</groupId>
-      <artifactId>experts-everything-until-now</artifactId>
-      <version>1.0-SNAPSHOT</version>
-      <scope>runtime</scope>
+        <groupId>com.tinkerpop.gremlin</groupId>
+        <artifactId>gremlin</artifactId>
+        <version>2.6.0</version>
+        <type>pom</type>
     </dependency>
 
     <dependency>
-      <groupId>p4analyser</groupId>
-      <artifactId>experts-visualisation</artifactId>
-      <version>1.0-SNAPSHOT</version>
-      <scope>runtime</scope>
+        <groupId>org.apache.tinkerpop</groupId>
+        <artifactId>gremlin-driver</artifactId>
+        <version>3.4.4</version>
+        <type>jar</type>
     </dependency>
 
     <dependency>
-      <groupId>p4analyser</groupId>
-      <artifactId>experts-call-graph</artifactId>
-      <version>1.0-SNAPSHOT</version>
-      <scope>runtime</scope>
+        <groupId>org.apache.tinkerpop</groupId>
+        <artifactId>gremlin-core</artifactId>
+        <version>3.4.4</version>
+        <type>jar</type>
     </dependency>
 
-    <dependency>
-      <groupId>p4analyser</groupId>
-      <artifactId>experts-symbol-table</artifactId>
-      <version>1.0-SNAPSHOT</version>
-      <scope>runtime</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>p4analyser</groupId>
-      <artifactId>experts-aliases</artifactId>
-      <version>1.0-SNAPSHOT</version>
-      <scope>runtime</scope>
-    </dependency>
-
-
-    <dependency>
-      <groupId>p4analyser</groupId>
-      <artifactId>experts-syntax-tree</artifactId>
-      <version>1.0-SNAPSHOT</version>
-      <scope>runtime</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>p4analyser</groupId>
-      <artifactId>experts-demo</artifactId>
-      <version>1.0-SNAPSHOT</version>
-      <scope>runtime</scope>
-    </dependency>
 
     <dependency>
       <groupId>junit</groupId>
@@ -93,7 +65,6 @@
   </dependencies>
 
   <build>
-
     <pluginManagement><!-- lock down plugins versions to avoid using Maven defaults (may be moved to parent pom) -->
       <plugins>
         <!-- clean lifecycle, see https://maven.apache.org/ref/current/maven-core/lifecycles.html#clean_Lifecycle -->

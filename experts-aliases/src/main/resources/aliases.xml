@@ -1,0 +1,12 @@
+<project name="aliases-expert" default="test" basedir="."> 
+    <target name="aliases-implem" extensionOf="aliases">
+        <java classname="p4analyser.experts.aliases.Aliases">
+            <arg value="${host}"/>
+            <arg value="${port}"/>
+            <arg value="${remoteTraversalSourceName}"/>
+        </java>
+        
+        <echo message="OK"></echo>
+    </target>
+
+</project>

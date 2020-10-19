@@ -17,6 +17,7 @@
     <module>experts-call-graph</module>
     <module>experts-visualisation</module>
     <module>experts-symbol-table</module>
+    <module>experts-aliases</module>
   </modules>
 
   <name>p4analyser</name>
