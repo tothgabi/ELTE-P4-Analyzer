@@ -1,0 +1,14 @@
+
+
+<project name="call-sites-expert" default="test" basedir="."> 
+    <target name="call-sites-implem" extensionOf="call-sites">
+        <java classname="p4analyser.experts.callsites.CallSites">
+            <arg value="${host}"/>
+            <arg value="${port}"/>
+            <arg value="${remoteTraversalSourceName}"/>
+        </java>
+        
+        <echo message="OK"></echo>
+    </target>
+
+</project>

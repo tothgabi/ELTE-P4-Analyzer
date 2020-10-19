@@ -1,0 +1,13 @@
+
+<project name="normalisation-expert" default="test" basedir="."> 
+    <target name="normalisation-implem" extensionOf="normalised-syntax-tree">
+        <java classname="p4analyser.experts.normalisation.Normalisation">
+            <arg value="${host}"/>
+            <arg value="${port}"/>
+            <arg value="${remoteTraversalSourceName}"/>
+        </java>
+        
+        <echo message="OK"></echo>
+    </target>
+
+</project>

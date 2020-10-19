@@ -1,0 +1,12 @@
+<project name="visualisation-expoert" default="test" basedir="."> 
+    <target name="visualisation-implem" extensionOf="visualisation">
+        <java classname="p4analyser.experts.visualisation.Printer">
+            <arg value="${host}"/>
+            <arg value="${port}"/>
+            <arg value="${remoteTraversalSourceName}"/>
+        </java>
+        
+        <echo message="OK"></echo>
+    </target>
+
+</project>
