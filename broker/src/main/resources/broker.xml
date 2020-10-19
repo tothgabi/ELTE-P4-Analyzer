@@ -6,13 +6,13 @@
     </import>
 
     <import>
-    <javaresource name="everything-until-now.xml">
+    <javaresource name="syntax-tree.xml">
         <classpath/>
     </javaresource>
     </import>
 
     <import>
-    <javaresource name="syntax-tree.xml">
+    <javaresource name="normalised-syntax-tree.xml">
         <classpath/>
     </javaresource>
     </import>
@@ -36,6 +36,18 @@
     </import>
 
     <import>
+    <javaresource name="call-sites.xml">
+        <classpath/>
+    </javaresource>
+    </import>
+
+    <import>
+    <javaresource name="control-flow.xml">
+        <classpath/>
+    </javaresource>
+    </import>
+
+    <import>
     <javaresource name="visualisation.xml">
         <classpath/>
     </javaresource>
@@ -43,11 +55,18 @@
 
     <extension-point name="demo" depends=""/>
     <extension-point name="syntax-tree" depends="demo"/>
+
+    <extension-point name="normalised-syntax-tree" depends="syntax-tree"/>
+
     <extension-point name="aliases" depends="syntax-tree"/>
     <extension-point name="symbol-table" depends="aliases"/>
+
     <extension-point name="call-graph" depends="aliases, symbol-table"/>
-    <extension-point name="everything-until-now" depends="symbol-table, aliases, syntax-tree"/>
-    <extension-point name="visualisation" depends="syntax-tree, aliases, symbol-table, call-graph"/>
+
+    <extension-point name="call-sites" depends="symbol-table, aliases, syntax-tree"/>
+    <extension-point name="control-flow" depends="symbol-table, aliases, syntax-tree"/>
+
+    <extension-point name="visualisation" depends="syntax-tree, aliases, symbol-table, call-graph, control-flow, call-sites"/>
 
 
     <target name="run" depends="visualisation">  

@@ -1,4 +1,4 @@
-package parser;
+package p4analyser.experts.callsites;
 
 import java.util.Collections;
 import java.util.List;
@@ -16,8 +16,6 @@ import p4analyser.ontology.Dom;
 
 public class SemanticAnalysis {
 
-//        CallSites.analyse(g);
-    
     // NOTE P4 spec has almost nothing about type instantiations and method dispatch mechanisms.
     //      It is not clear whether packet.extract(...) refers to the extract method in the 'packet' namespace, where 'packet' is just an alias to 'packet_in', or
     //      it is actually a method call extract(packet, ...), where the definition of extract is selected based on the static type of 'packet'.

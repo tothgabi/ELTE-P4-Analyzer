@@ -106,4 +106,52 @@ public class AntlrP4
             throw new RuntimeException(e);
         }
     }
+
+// // stress test case generators 
+//    public static void stressTest(int n) {
+//        try {
+//            PrintStream out = new PrintStream("/tmp/filename.txt");
+//        
+//            System.out.println("");
+//            System.out.println("// 511");
+//            f(511);        
+//
+//        } catch (FileNotFoundException e) {
+//            // TODO Auto-generated catch block
+//            e.printStackTrace();
+//        }
+//
+//        System.out.println();  
+//        System.exit(0);
+//    }
+
+//    public static void f(int n) {
+//        if (n == 1) {
+//            System.out.print("{ ipv4_lpm.apply(); }");
+//        } else if (n > 1) {
+//            System.out.print("{ ipv4_lpm.apply(); ");
+//            f(n - 1);
+//            System.out.print("}");
+//        }
+//    }
+//
+//    public static void g(int n, PrintStream out) {
+//
+//            if(n == 0){
+//            out.print("ipv4_lpm.apply();");
+//            }
+//            else if(n > 0){
+//            out.print("if(hdr.ipv4.isValid()){ipv4_lpm.apply();"); 
+//            g(n - 1, out);
+//            out.print("}else{ipv4_lpm.apply();"); 
+//            g(n - 1, out);
+//            out.print("}"); 
+//            }
+//            out.close();
+//    }
+//    public static void h(int n){
+//        for (int i = 0; i < n; i++) {
+//          System.out.print("{ ipv4_lpm.apply(); }");
+//        }
+//    }
 }
