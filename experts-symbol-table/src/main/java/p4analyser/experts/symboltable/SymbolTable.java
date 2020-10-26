@@ -48,6 +48,7 @@ public class SymbolTable
     public static void analyse(GraphTraversalSource g){
         resolveNames(g);
         resolveTypeRefs(g);
+        parserStateScopes(g);
         localScope(g);
         parameterScope(g);
         fieldAndMethodScope(g);
@@ -57,7 +58,8 @@ public class SymbolTable
         controlAndParserInstantiations(g);
     }
 
-    public static void resolveNames(GraphTraversalSource g){
+
+    public static void resolveNames(GraphTraversalSource g) {
         g.V().hasLabel(Dom.SYN)
         .or(__.has(Dom.Syn.V.CLASS, "HeaderTypeDeclarationContext"),
             __.has(Dom.Syn.V.CLASS, "ExternDeclarationContext"),
@@ -71,6 +73,7 @@ public class SymbolTable
             __.has(Dom.Syn.V.CLASS, "TableDeclarationContext"),
             __.has(Dom.Syn.V.CLASS, "ControlDeclarationContext"),
             __.has(Dom.Syn.V.CLASS, "ParserDeclarationContext"),
+            __.has(Dom.Syn.V.CLASS, "ParserStateContext"),
             __.has(Dom.Syn.V.CLASS, "PackageTypeDeclarationContext"),
             __.has(Dom.Syn.V.CLASS, "ParameterContext"))
         .as("root")
@@ -124,6 +127,38 @@ public class SymbolTable
             .iterate();
     }
 
+    @SuppressWarnings("unchecked")
+    private static void parserStateScopes(GraphTraversalSource g) {
+        g.V().hasLabel(Dom.SYN)
+            // find all names that refer to parser states
+            .has(Dom.Syn.V.CLASS, "StateExpressionContext")
+            .coalesce(
+                __.outE(Dom.SYN).has(Dom.Syn.E.RULE, "name").inV(), 
+                __.repeat(__.out(Dom.SYN))
+                  .until(__.has(Dom.Syn.V.CLASS, "SelectCaseContext")) 
+                  .outE(Dom.SYN).has(Dom.Syn.E.RULE, "name").inV()) 
+            .repeat(__.out(Dom.SYN))
+            .until(__.has(Dom.Syn.V.CLASS, "TerminalNodeImpl"))
+            .as("nameNode")
+            .values("value").as("name")
+
+            // find all parsers states in that parser
+            .<Vertex>select("nameNode")
+            .repeat(__.in(Dom.SYN))
+            .until(__.has(Dom.Syn.V.CLASS, "ParserDeclarationContext"))
+
+            .repeat(__.out(Dom.SYN))
+            .until(__.has(Dom.Syn.V.CLASS, "ParserStateContext"))
+            .as("decl")
+
+            // select the one that declares that name
+            .outE(Dom.SYMBOL).has(Dom.Symbol.ROLE, Dom.Symbol.Role.DECLARES_NAME).inV()
+            .values("value")
+            .where(P.eq("name"))
+            .addE(Dom.SYMBOL).from("decl").to("nameNode")
+            .property(Dom.Symbol.ROLE, Dom.Symbol.Role.SCOPES)
+            .iterate();
+    }
 
     // TODO prefixed names can introduce bugs
     // - e.g. local declaration of 'x' will scope struct fields names 'x' (in case they are used)
@@ -165,6 +200,7 @@ public class SymbolTable
             
             .iterate();
     }
+
 
     // TODO is there variable covering? (e.g. action parameters cover control parameters?)
     // - if yes, start adding edges from the bottom, and don't add new edges to those who already have one

@@ -11,9 +11,6 @@ public class ControlFlow
 {
     public static void main( String[] args )
     {
-        System.out.println( "Not implemented yet!" );
-        System.exit(0);
-
         String host = args[0];
         int port = Integer.parseInt(args[1]);
         String remoteTraversalSourceName = args[2];

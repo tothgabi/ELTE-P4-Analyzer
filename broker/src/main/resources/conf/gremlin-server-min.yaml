@@ -32,6 +32,5 @@ scriptEngines: {
                org.apache.tinkerpop.gremlin.jsr223.ScriptFileGremlinPlugin: {files: [EMPTY_SAMPLE_GROOVY]}}}}
 
 #               org.apache.tinkerpop.gremlin.jsr223.ScriptFileGremlinPlugin: {files: [classpath:/conf/empty-sample.groovy]}}}}
-#               org.apache.tinkerpop.gremlin.jsr223.ScriptFileGremlinPlugin: {files: [/home/daniel/Projects/tmp/daniel-lukacs-phd__/broker/src/main/resources/conf/empty-sample.groovy]}}}}
 metrics: {
   slf4jReporter: {enabled: true, interval: 180000}}

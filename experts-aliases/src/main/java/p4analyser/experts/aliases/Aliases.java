@@ -116,7 +116,7 @@ public class Aliases {
             findTransitionSelectCaseName(g);
             findStartState(g);
             findNextState(g);
-            findStatements(g);
+//            findStatements(g);
 
         }
 
@@ -236,23 +236,24 @@ public class Aliases {
             }
         }
 
+        // I included this in Control. Delete this if that works.
         // TODO until -> emit
-        private static void findStatements(GraphTraversalSource g){
-
-            g.E().hasLabel(Dom.SEM).has(Dom.Sem.DOMAIN, Dom.Sem.Domain.PARSER).has(Dom.Sem.ROLE, Dom.Sem.Role.Parser.STATE).inV()
-            .as("synState")
-            .outE(Dom.SYN).has(Dom.Syn.E.RULE, "parserStatements").inV()
-            .repeat(__.out())
-            .until(__.has(Dom.Syn.V.CLASS, "AssignmentOrMethodCallStatementContext").or()
-                    .has(Dom.Syn.V.CLASS, "DirectApplicationContext").or()
-                    .has(Dom.Syn.V.CLASS, "ConstantDeclarationContext").or()
-                    .has(Dom.Syn.V.CLASS, "VariableDeclarationContext"))
-            .addE(Dom.SEM).from("synState")
-            .property(Dom.Sem.DOMAIN, Dom.Sem.Domain.PARSER).property(Dom.Sem.ROLE, Dom.Sem.Role.Parser.STATEMENT)
-            
-            .iterate();
-
-        }
+//        private static void findStatements(GraphTraversalSource g){
+//
+//            g.E().hasLabel(Dom.SEM).has(Dom.Sem.DOMAIN, Dom.Sem.Domain.PARSER).has(Dom.Sem.ROLE, Dom.Sem.Role.Parser.STATE).inV()
+//            .as("synState")
+//            .outE(Dom.SYN).has(Dom.Syn.E.RULE, "parserStatements").inV()
+//            .repeat(__.out())
+//            .until(__.has(Dom.Syn.V.CLASS, "AssignmentOrMethodCallStatementContext").or()
+//                    .has(Dom.Syn.V.CLASS, "DirectApplicationContext").or()
+//                    .has(Dom.Syn.V.CLASS, "ConstantDeclarationContext").or()
+//                    .has(Dom.Syn.V.CLASS, "VariableDeclarationContext"))
+//            .addE(Dom.SEM).from("synState")
+//            .property(Dom.Sem.DOMAIN, Dom.Sem.Domain.PARSER).property(Dom.Sem.ROLE, Dom.Sem.Role.Parser.STATEMENT)
+//            
+//            .iterate();
+//
+//        }
     }
 
     private static class Control {
@@ -291,30 +292,46 @@ public class Aliases {
                 .iterate();
         }
 
+        // NOTE: this now handles actions as well
         private static void findControlBody(GraphTraversalSource g) {
-            g.E().hasLabel(Dom.SEM)
-             .has(Dom.Sem.DOMAIN, Dom.Sem.Domain.TOP).has(Dom.Sem.ROLE, Dom.Sem.Role.Top.CONTROL).inV()
+            g.V().hasLabel(Dom.SYN)
+             .has(Dom.Syn.V.CLASS, "ControlDeclarationContext")
              .addE(Dom.SEM).to(__.outE(Dom.SYN).has(Dom.Syn.E.RULE, "controlBody").inV().out(Dom.SYN))
-             .property(Dom.Sem.DOMAIN, Dom.Sem.Domain.CONTROL).property(Dom.Sem.ROLE, Dom.Sem.Role.Control.BODY)
+             .property(Dom.Sem.DOMAIN, Dom.Sem.Domain.CONTROL)
+             .property(Dom.Sem.ROLE, Dom.Sem.Role.Control.BODY)
+             
+             .iterate();
+
+            g.V().hasLabel(Dom.SYN)
+             .has(Dom.Syn.V.CLASS, "ActionDeclarationContext")
+             .addE(Dom.SEM).to(__.outE(Dom.SYN).has(Dom.Syn.E.RULE, "blockStatement").inV())
+             .property(Dom.Sem.DOMAIN, Dom.Sem.Domain.CONTROL)
+             .property(Dom.Sem.ROLE, Dom.Sem.Role.Control.BODY)
              
              .iterate();
         }
 
+        // NOTE: this now handles parsers as well. 
+        //   the grammar seems somewhat inconsistent here (why didn't they reuse 
+        //   BlockStatement in the parser as well?). it looks like ParserStates
+        //   act like special blocks, but there is also ParserBlockStatement for
+        //   nesting blocks inside ParserStates.
         private static void findBlockStatements(GraphTraversalSource g) {
         // Note: 
         // - The syntax tree has represents linked lists in reverse-order: the head is the leaf.
         // - Gremlin has no reverse operation. It can be simulated using fold() and Collections.reverse, but then path information (incl. names) is lost.
             List<Map<String, Vertex>> ms = 
-                g.E().hasLabel(Dom.SEM)
-                .has(Dom.Sem.DOMAIN, Dom.Sem.Domain.TOP).has(Dom.Sem.ROLE, Dom.Sem.Role.Top.CONTROL).inV()
-                .repeat(__.out(Dom.SYN))
-                .emit(__.has(Dom.Syn.V.CLASS, "BlockStatementContext"))
+                g.V().hasLabel(Dom.SYN)
+                .or(__.has(Dom.Syn.V.CLASS, "BlockStatementContext"),
+                    __.has(Dom.Syn.V.CLASS, "ParserStateContext"),
+                    __.has(Dom.Syn.V.CLASS, "ParserBlockStatementContext"))
                 .as("blockRoot")
-                .repeat(__.out())
+                .repeat(__.out(Dom.SYN))
                 .until(__.has(Dom.Syn.V.CLASS, "AssignmentOrMethodCallStatementContext").or()
                         .has(Dom.Syn.V.CLASS, "DirectApplicationContext").or()
                         .has(Dom.Syn.V.CLASS, "ConditionalStatementContext").or()
                         .has(Dom.Syn.V.CLASS, "BlockStatementContext").or()
+                        .has(Dom.Syn.V.CLASS, "ParserBlockStatementContext").or()
                         .has(Dom.Syn.V.CLASS, "EmptyStatement").or()
                         .has(Dom.Syn.V.CLASS, "ExitStatement").or()
                         .has(Dom.Syn.V.CLASS, "ReturnStatement").or()
@@ -330,6 +347,9 @@ public class Aliases {
                 
                 g.V(statement).choose(__.values(Dom.Syn.V.CLASS))
                 .option("BlockStatementContext",
+                    __.addE(Dom.SEM).from(__.V(blockRoot))
+                    .property(Dom.Sem.ROLE, Dom.Sem.Role.Control.NEST))
+                .option("ParserBlockStatementContext",
                     __.addE(Dom.SEM).from(__.V(blockRoot))
                     .property(Dom.Sem.ROLE, Dom.Sem.Role.Control.NEST))
                 .option("ConditionalStatementContext",
@@ -373,10 +393,9 @@ public class Aliases {
         // Sends a 'last' edge from each 'block statement' node to its last nested node.
         // This will be either a block, or a conditional.
         private static void findLastStatements(GraphTraversalSource g) {
-            g.E().hasLabel(Dom.SEM)
-             .has(Dom.Sem.DOMAIN, Dom.Sem.Domain.TOP).has(Dom.Sem.ROLE, Dom.Sem.Role.Top.CONTROL).inV()
-             .repeat(__.out(Dom.SYN))
-             .emit(__.has(Dom.Syn.V.CLASS, "BlockStatementContext"))
+            g.V().hasLabel(Dom.SYN)
+             .or(__.has(Dom.Syn.V.CLASS, "BlockStatementContext"), 
+                 __.has(Dom.Syn.V.CLASS, "ParserBlockStatementContext"))
              .as("block")
              .local(
                 __.outE(Dom.SEM)
@@ -393,50 +412,39 @@ public class Aliases {
              .iterate();
         }
 
-        // For each block that nests other blocks:
-        // Finds all those blocks of a control definition 
-        // that can be the last block of that control.
-        // Note that there can be multiple potential last blocks because of 
-        // conditionals.
-        // This is a transitive closure of 'body', 'trueBranch', 'falseBranch',
-        // and those 'last' edges that point to the nested block
-        // note: 'last' denotes the last position, so last can point to statements as well, but return only points to last blocks. (this way return is always a continuation, and can be used in control flow analysis.) 
-        // IMPROVEMENT: not counting conditionals, this is now polynomial time but it could be linearized if higher nodes reused the return statements of their last-nodes.
+        // Finds return points of blocks. If a block has no children, it
+        //   has no return point. 
+        //  Otherwise, the return points of the block are return points of 
+        //   its "returning children" in case they have return points, otherwise
+        //   the return points are the returning children themselves.
+        // The returning children of a block is defined per block type:
+        //   - ConditionalStatement: both branch are returning children
+        //   - BlockStatement: its last statement (possibly a nest) is the returning child
+        //   - Declaration: its body is the returning child.
         private static void findReturnStatements(GraphTraversalSource g) {
-
-                g.E().hasLabel(Dom.SEM)
-                 .or(__.has(Dom.Sem.DOMAIN, Dom.Sem.Domain.TOP)
-                       .has(Dom.Sem.ROLE, Dom.Sem.Role.Top.CONTROL),
-                     __.has(Dom.Sem.DOMAIN, Dom.Sem.Domain.CONTROL)
-                      .or(__.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.BODY),
-                          __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.TRUE_BRANCH),
-                          __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.FALSE_BRANCH),
-                          __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.NEST)))
-                .inV().as("controlRoot") 
-
-                .repeat(__.outE(Dom.SEM)
-                          .or(__.has(Dom.Sem.DOMAIN, Dom.Sem.Domain.TOP)
-                                .has(Dom.Sem.ROLE, Dom.Sem.Role.Top.CONTROL),
-                              __.has(Dom.Sem.DOMAIN, Dom.Sem.Domain.CONTROL)
-                                .or(__.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.BODY),
-                                    __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.TRUE_BRANCH),
-                                    __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.FALSE_BRANCH),
-                                    __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.LAST).inV().inE(Dom.SEM).has(Dom.Sem.ROLE, Dom.Sem.Role.Control.NEST)))
-                        .inV())
-                .until(__.outE(Dom.SEM).has(Dom.Sem.DOMAIN, Dom.Sem.Domain.CONTROL)
-                        .or(__.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.BODY),
-                            __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.TRUE_BRANCH),
-                            __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.FALSE_BRANCH),
-                            __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.LAST)
-                              .inV().inE(Dom.SEM).has(Dom.Sem.ROLE, Dom.Sem.Role.Control.NEST))
-                        .count().is(0))
-                .addE(Dom.SEM).from("controlRoot")
-                .property(Dom.Sem.DOMAIN, Dom.Sem.Domain.CONTROL)
-                .property(Dom.Sem.ROLE, Dom.Sem.Role.Control.RETURN)
-                
-                .iterate();
-
+            g.V().hasLabel(Dom.SYN)
+                 .or(__.has(Dom.Syn.V.CLASS, "ConditionalStatementContext"),
+                     __.has(Dom.Syn.V.CLASS, "BlockStatementContext"),
+                     __.has(Dom.Syn.V.CLASS, "ParserBlockStatementContext"),
+                     __.has(Dom.Syn.V.CLASS, "ControlDeclarationContext"),
+                     __.has(Dom.Syn.V.CLASS, "ActionDeclarationContext"))
+                 .order().by(Dom.Syn.V.NODE_ID, Order.desc)
+                 .as("source")
+                 .outE(Dom.SEM)
+                 .or(__.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.BODY),
+                     __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.TRUE_BRANCH),
+                     __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.FALSE_BRANCH),
+                     __.has(Dom.Sem.ROLE, Dom.Sem.Role.Control.LAST))
+                 .inV()
+                 .optional(__.outE(Dom.SEM)
+                             .has(Dom.Sem.ROLE, Dom.Sem.Role.Control.RETURN)
+                             .inV()) 
+                 .addE(Dom.SEM).from("source")
+                 .property(Dom.Sem.DOMAIN, Dom.Sem.Domain.CONTROL)
+                 .property(Dom.Sem.ROLE, Dom.Sem.Role.Control.RETURN)
+                 .iterate();
         }
+
     }
 
     // TODO this is technically just a function call (to an extern). name and type resolution belongs to Symbol.
