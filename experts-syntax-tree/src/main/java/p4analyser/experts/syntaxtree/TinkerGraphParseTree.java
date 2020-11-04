@@ -62,8 +62,9 @@ public class TinkerGraphParseTree {
                 g   .addV(Dom.SYN) //.sideEffect(GremlinUtils.setNodeId())
 //                    .property("nodeId", Integer.toString(ids.size()))
                     .property(Dom.Syn.V.CLASS, node.getClass().getSimpleName())
-                    .property(Dom.Syn.V.START, node.getSourceInterval().a)
-                    .property(Dom.Syn.V.END, node.getSourceInterval().b)
+                    .property(Dom.Syn.V.START, node.getSymbol().getStartIndex())
+                    .property(Dom.Syn.V.END, node.getSymbol().getStopIndex())
+                    .property(Dom.Syn.V.LINE, node.getSymbol().getLine())
                     .property(Dom.Syn.V.VALUE, sanitize(node.getText()))
                     .next();
             ids.put(node, id);
@@ -76,16 +77,21 @@ public class TinkerGraphParseTree {
                 .iterate();
         }
 
+        @Override
         public void enterEveryRule(ParserRuleContext ctx){
+            // note: getStop is null, if the rule maps to the empty string. (e.g.  input : /* epsilon */)
+            int stopIdx = ctx.getStop() == null 
+                          ? ctx.getStart().getStopIndex() 
+                          : ctx.getStop().getStopIndex();
             Vertex id =
                 g   .addV(Dom.SYN) //.sideEffect(GremlinUtils.setNodeId())
 //                    .property("nodeId", Integer.toString(ids.size()))
                     .property(Dom.Syn.V.CLASS, ctx.getClass().getSimpleName())
-                    .property(Dom.Syn.V.START, ctx.getSourceInterval().a)
-                    .property(Dom.Syn.V.END, ctx.getSourceInterval().b)
+                    .property(Dom.Syn.V.START, ctx.getStart().getStartIndex())
+                    .property(Dom.Syn.V.END, stopIdx)
+                    .property(Dom.Syn.V.LINE, ctx.getStart().getLine())
                     .next();
             
-
             ids.put(ctx, id);
             if(ctx.parent == null) return;
             Object parentId = ids.get(ctx.parent);

@@ -23,6 +23,7 @@ public class Dom {
     public static class V {
         public static final String START="start";
         public static final String END="end";
+        public static final String LINE="line";
         public static final String NODE_ID="nodeId";
         public static final String CLASS="class";
         public static final String VALUE="value";

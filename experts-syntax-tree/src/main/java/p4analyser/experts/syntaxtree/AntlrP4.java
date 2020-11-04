@@ -3,6 +3,7 @@ package p4analyser.experts.syntaxtree;
 import org.anarres.cpp.CppReader;
 import org.anarres.cpp.Preprocessor;
 import org.antlr.v4.gui.TreeViewer;
+import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.TokenStream;
@@ -41,6 +42,7 @@ public class AntlrP4
     public static final String EX1_P4 = loader.getResource("ex1.p4").getPath().toString();
     public static final String CORE_P4 = loader.getResource("core.p4").getPath().toString();
     public static final String V1MODEL_P4 = loader.getResource("v1model.p4").getPath().toString();
+    public static final String BASIC_P4 = loader.getResource("basic.p4").getPath().toString();
 
     public static void main( String[] args ) throws IOException
     {
@@ -53,13 +55,13 @@ public class AntlrP4
 //      org.antlr.v4.Tool.main(new String[]{"-visitor", "-o", "hmm/src/main/java/hmm/p4", "-package", "hmm.p4", "P4.g4"});
 
 //  // To parse without resolving includes:
-//        CharStream stream = CharStreams.fromFileName(PATH_PREFIX + "ex1.p4");
+//        CharStream stream = CharStreams.fromFileName(BASIC_P4);
 //        P4Lexer lexer  = new P4Lexer(stream);   
 
         // Using C preprocessor to resolve includes. 
         // JCPP-Antlr integration from here: https://stackoverflow.com/a/25358397
         // Note that includes are huge, they slow down everything, and many things can be analysed without them.
-        Preprocessor pp = new Preprocessor(new File(EX1_P4));
+        Preprocessor pp = new Preprocessor(new File(BASIC_P4));
         List<String> systemInclude = new ArrayList<String>();
 
         if(!new File(CORE_P4).getParent().equals(new File(V1MODEL_P4).getParent()))
