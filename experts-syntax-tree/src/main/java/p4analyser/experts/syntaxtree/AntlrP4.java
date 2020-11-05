@@ -39,7 +39,6 @@ import javax.xml.transform.TransformerException;
 public class AntlrP4 
 {
     private static final ClassLoader loader = Thread.currentThread().getContextClassLoader();
-    public static final String EX1_P4 = loader.getResource("ex1.p4").getPath().toString();
     public static final String CORE_P4 = loader.getResource("core.p4").getPath().toString();
     public static final String V1MODEL_P4 = loader.getResource("v1model.p4").getPath().toString();
     public static final String BASIC_P4 = loader.getResource("basic.p4").getPath().toString();
@@ -49,6 +48,8 @@ public class AntlrP4
        String host = args[0];
        int port = Integer.parseInt(args[1]);
        String remoteTraversalSourceName = args[2];
+       String p4ProgramSourceName = loader.getResource(args[3]).getPath();
+
 
 // // Antlr4 P4 parser generation is now automatically managed by Maven. 
 // // In case of emergency, this can also generate P4Lexer class and P4Parser class along with the P4BaseVisitor class:
@@ -61,7 +62,7 @@ public class AntlrP4
         // Using C preprocessor to resolve includes. 
         // JCPP-Antlr integration from here: https://stackoverflow.com/a/25358397
         // Note that includes are huge, they slow down everything, and many things can be analysed without them.
-        Preprocessor pp = new Preprocessor(new File(BASIC_P4));
+        Preprocessor pp = new Preprocessor(new File(p4ProgramSourceName));
         List<String> systemInclude = new ArrayList<String>();
 
         if(!new File(CORE_P4).getParent().equals(new File(V1MODEL_P4).getParent()))

@@ -1,0 +1,61 @@
+{ "all-tests": 
+    [
+        {
+            "test": "call-graph-test",
+            "files":
+            [
+                {
+                    "file": "basic.p4",
+                    "test-cases": [
+                        {"value": 9},
+                        {"value": 5},
+                        {"value": 3},
+                        {"value": 1},
+                        {"value": 1},
+                        {"value": 3},
+                        {"value": 1},
+                        {"value": 5}
+                    ]
+                }
+            ]
+        },
+        {
+            "test": "aliases-test",
+            "files":
+            [
+                {
+                    "file": "ex1.p4",
+                    "test-cases": [
+                        {"value": 1}
+                    ]
+                },
+                {
+                    "file": "basic.p4",
+                    "test-cases": [
+                        {"value": 9}
+                    ]
+                }
+            ]
+        },
+        {
+            "test": "symbol-table-test",
+            "files":
+            [
+                {
+                    "file": "ex1.p4",
+                    "test-cases": [
+                        {"value": 1},
+                        {"value": 4}
+                    ]
+                },
+                {
+                    "file": "basic.p4",
+                    "test-cases": [
+                        {"value": 2},
+                        {"value": 4}
+                    ]
+                }
+            ]
+        }
+    ]
+}

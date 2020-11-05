@@ -53,22 +53,34 @@
     </javaresource>
     </import>
 
+    <import optional="${optinalTestXml}">
+        <javaresource name="tests.xml">
+             <classpath/>
+        </javaresource>
+     </import>
+
     <extension-point name="demo" depends=""/>
     <extension-point name="syntax-tree" depends="demo"/>
 
     <extension-point name="normalised-syntax-tree" depends="syntax-tree"/>
 
     <extension-point name="aliases" depends="syntax-tree"/>
+    <extension-point name="aliases-test" depends="aliases"/>
+
     <extension-point name="symbol-table" depends="aliases"/>
+    <extension-point name="symbol-table-test" depends="symbol-table"/>
+
 
     <extension-point name="call-graph" depends="aliases, symbol-table"/>
+    <extension-point name="call-graph-test" depends="call-graph"/>
+
 
     <extension-point name="call-sites" depends="symbol-table, aliases, syntax-tree"/>
     <extension-point name="control-flow" depends="symbol-table, aliases, syntax-tree"/>
 
+
     <extension-point name="visualisation" depends="syntax-tree, aliases, symbol-table, call-graph, control-flow, call-sites"/>
 
-
-    <target name="run" depends="visualisation">  
-    </target>
+    <target name="run" depends="visualisation"></target>
+    <target name="test" depends="TEST-DEPENDS"></target>
 </project>

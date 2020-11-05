@@ -1,6 +1,17 @@
 package p4analyser.broker;
 
+import p4analyser.broker.tools.JsonHandler;
+import p4analyser.broker.tools.FailsHandler;
+
 import java.io.File;
+
+import org.apache.tools.ant.DefaultLogger;
+import org.apache.tools.ant.Project;
+import org.apache.tools.ant.ProjectHelper;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -8,48 +19,65 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-import org.apache.tools.ant.DefaultLogger;
-import org.apache.tools.ant.Project;
-import org.apache.tools.ant.ProjectHelper;
-
-import org.apache.commons.configuration.Configuration;
-import org.apache.commons.configuration.ConfigurationException;
-import org.apache.commons.configuration.PropertiesConfiguration;
-
-
-public class App {
+public class ControllerIT {
 
     private static ClassLoader loader = Thread.currentThread().getContextClassLoader();
 
     private static String BROKER_DEFINITION_PATH = loader.getResource("broker.xml").getPath();
 
-    private static String GREMLIN_CLIENT_CONF_PATH = loader.getResource("conf/remote-graph.properties").getPath();
+    private LocalGremlinServer server;
 
-//    NOTE Unlike with YAML, we can use "classpath:" notation in .properties files, so it turned out we don't need this:
-//    private static String GREMLIN_CLIENT_CONF_CLUSTERFILE_PATH = loader.getResource("conf/remote-objects.yaml").getPath();
+    public static JsonHandler jsonHandler;
 
     public static void main(String[] args) {
-        App app = new App();
-        app.start();
-        app.close();
-    }
+        System.out.println("ControllerIT - has started");
 
-    private LocalGremlinServer server;
-    private App() {
+        ControllerIT app = new ControllerIT();
+        jsonHandler = new JsonHandler("tests.json");
+        FailsHandler.initFails();
+
+        HashMap<String, ArrayList<String>> fileInfo = jsonHandler.getFileTestInfo();
+        for (String fileName : fileInfo.keySet()) {
+            app.start(fileName, fileInfo.get(fileName));
+        }
+        
+        app.close();
+        
+        FailsHandler.reportFails();
+        FailsHandler.deleteFails();
+        System.out.println("ControllerIT - has finished");
+
+        System.exit(0);
+    }   
+
+    private ControllerIT () {
         server = new LocalGremlinServer();
         server.start();
     }
 
     private void close(){
         server.close();
-
     }
 
-    private void start() {
+    /*
+    private void runUnitTests() {
+        System.out.println("==============\nRun Unit Tests\n==============");
+        FailsHandler.writeFails("UnitTest", "aliases", JUnitCore.runClasses(AliasesTest.class).getFailures());
+        FailsHandler.writeFails("UnitTest", "call-graph", JUnitCore.runClasses(CallGraphGeneratorTest.class).getFailures());
+        FailsHandler.writeFails("UnitTest", "symbol-table", JUnitCore.runClasses(SymbolTableTest.class).getFailures());
+        System.out.println("==============\nFinish Unit Tests\n==============");
+    }*/
+
+    private void start (String fileName, ArrayList<String> propertyList) {
+        System.out.println("****************\nTest - has started a new run with " + fileName + "\n****************");
+
+        System.out.println(propertyList.toString());
+        String propertyListString = propertyList.toString();
+        propertyListString = propertyListString.substring(1, propertyListString.length()-1);
+        badSolutionForDepends(propertyListString);
+
         File buildFile = new File(BROKER_DEFINITION_PATH);
         Project p = new Project();
-        badSolutionForDepends("aliases");
-
 
         DefaultLogger consoleLogger = new DefaultLogger();
         consoleLogger.setErrorPrintStream(System.err);
@@ -60,17 +88,18 @@ public class App {
         p.setProperty("host", server.host);
         p.setProperty("port", Integer.toString(server.port));
         p.setProperty("remoteTraversalSourceName", server.remoteTraversalSourceName);
-        p.setProperty("p4ProgramSourceName", "basic.p4");
-        p.setProperty("optinalTestXml", "true");
+        p.setProperty("p4ProgramSourceName", fileName);
+        p.setProperty("optinalTestXml", "false");
+        
 
         p.setUserProperty("ant.file", buildFile.getAbsolutePath());
         p.init();
         ProjectHelper helper = ProjectHelper.getProjectHelper();
         p.addReference("ant.projectHelper", helper);
         helper.parse(p, buildFile);
-        p.executeTarget(p.getDefaultTarget());
-
-        rewriteBadSolutionForDepends("aliases");
+        
+        p.executeTarget("test");
+        rewriteBadSolutionForDepends(propertyListString);
     }
 
     private void badSolutionForDepends (String depends) {
@@ -81,7 +110,6 @@ public class App {
         try {
             content = new String(Files.readAllBytes(path), charset);
             content = content.replaceAll("TEST-DEPENDS", depends);
-            
             Files.write(path, content.getBytes(charset));
         } catch (IOException e1) {
             throw new IllegalStateException("Failed to edit config file " + BROKER_DEFINITION_PATH);
@@ -103,21 +131,4 @@ public class App {
         }
     }
 
-    private static Configuration loadClientConfig() {
-        Configuration c;
-        try {
-            c = new PropertiesConfiguration(GREMLIN_CLIENT_CONF_PATH);
-        } catch (ConfigurationException e) {
-            throw new IllegalStateException(
-                    String.format(
-                        "Error parsing Gremlin client file at %s:", 
-                        GREMLIN_CLIENT_CONF_PATH),
-                    e);
-        }
-
-//      NOTE Unlike with YAML, we can use "classpath:" notation in .properties files, so it turned out we don't need this:
-//      c.setProperty("gremlin.remote.driver.clusterFile", GREMLIN_CLIENT_CONF_CLUSTERFILE_PATH);
-
-        return c;
-    }
 }

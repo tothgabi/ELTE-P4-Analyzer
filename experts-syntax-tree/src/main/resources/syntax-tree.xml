@@ -4,6 +4,7 @@
             <arg value="${host}"/>
             <arg value="${port}"/>
             <arg value="${remoteTraversalSourceName}"/>
+            <arg value="${p4ProgramSourceName}"/>
         </java>
         
         <echo message="OK"></echo>

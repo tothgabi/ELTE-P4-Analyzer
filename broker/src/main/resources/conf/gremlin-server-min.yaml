@@ -34,3 +34,4 @@ scriptEngines: {
 #               org.apache.tinkerpop.gremlin.jsr223.ScriptFileGremlinPlugin: {files: [classpath:/conf/empty-sample.groovy]}}}}
 metrics: {
   slf4jReporter: {enabled: true, interval: 180000}}
+scriptEvaluationTimeout: 60000

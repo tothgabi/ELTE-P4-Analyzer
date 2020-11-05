@@ -10,7 +10,6 @@
   <modules>  
     <module>broker</module>
     <module>blackboard</module>
-    <module>experts-everything-until-now</module>
     <module>experts-demo</module>
     <module>experts-syntax-tree</module>
     <module>ontology</module>
@@ -37,8 +36,13 @@
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
       <version>4.11</version>
-      <scope>test</scope>
     </dependency>
+
+    <dependency>
+      <groupId>org.apache.tinkerpop</groupId>
+      <artifactId>tinkergraph-gremlin</artifactId>
+      <version>3.4.8</version>
+  </dependency>
   </dependencies>
 
   <build>

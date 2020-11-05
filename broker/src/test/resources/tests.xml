@@ -1,0 +1,34 @@
+<project name="broker-test" default="test" basedir="."> 
+    <target name="aliases-test-impl" extensionOf="aliases-test">
+        <java classname="p4analyser.broker.tests.AliasesITs">
+            <arg value="${host}"/>
+            <arg value="${port}"/>
+            <arg value="${remoteTraversalSourceName}"/>
+            <arg value="${p4ProgramSourceName}"/>
+        </java>
+        
+        <echo message="OK"></echo>
+    </target>
+
+    <target name="call-graph-test-impl" extensionOf="call-graph-test">
+        <java classname="p4analyser.broker.tests.CallGraphGeneratorITs">
+            <arg value="${host}"/>
+            <arg value="${port}"/>
+            <arg value="${remoteTraversalSourceName}"/>
+            <arg value="${p4ProgramSourceName}"/>
+        </java>
+        
+        <echo message="OK"></echo>
+    </target>
+
+    <target name="symbol-table-test-impl" extensionOf="symbol-table-test" >
+        <java classname="p4analyser.broker.tests.SymbolTableITs">
+            <arg value="${host}"/>
+            <arg value="${port}"/>
+            <arg value="${remoteTraversalSourceName}"/>
+            <arg value="${p4ProgramSourceName}"/>
+        </java>
+        
+        <echo message="OK"></echo>
+    </target>
+</project>

@@ -49,7 +49,7 @@ import org.apache.tinkerpop.gremlin.tinkergraph.process.traversal.step.sideEffec
 import org.javatuples.Pair;
 
 public class GremlinLatex {
-
+/*
     // note: Step is not prepared to accept Visitors, and with instanceof I had to
     // copy class names twice
 
@@ -407,4 +407,5 @@ public class GremlinLatex {
         
         return sb.toString();
     }
+*/
 }
