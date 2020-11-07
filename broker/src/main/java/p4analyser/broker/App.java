@@ -16,6 +16,8 @@ import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.PropertiesConfiguration;
 
+import org.apache.commons.lang3.SystemUtils;
+
 
 public class App {
 
@@ -36,13 +38,13 @@ public class App {
 
     private LocalGremlinServer server;
     private App() {
+        rightPaths();
         server = new LocalGremlinServer();
         server.start();
     }
 
     private void close(){
         server.close();
-
     }
 
     private void start() {
@@ -71,6 +73,14 @@ public class App {
         p.executeTarget(p.getDefaultTarget());
 
         rewriteBadSolutionForDepends("aliases");
+    }
+
+    private Boolean isWindows = SystemUtils.OS_NAME.contains("Windows");
+    private void rightPaths() {
+        if (isWindows) {
+            BROKER_DEFINITION_PATH = BROKER_DEFINITION_PATH.substring(1);
+            GREMLIN_CLIENT_CONF_PATH = GREMLIN_CLIENT_CONF_PATH.substring(1);
+        }
     }
 
     private void badSolutionForDepends (String depends) {

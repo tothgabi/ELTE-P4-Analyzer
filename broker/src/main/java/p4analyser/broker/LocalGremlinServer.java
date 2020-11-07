@@ -20,6 +20,7 @@ public class LocalGremlinServer {
     private static String TINKERGRAPH_EMPTY_PROPERTIES_PATH = loader.getResource("conf/tinkergraph-empty.properties").getPath();
     private static String EMPTY_SAMPLE_GROOVY_PATH = loader.getResource("conf/empty-sample.groovy").getPath();
 
+    private static Boolean hasSetPath = false;
     // TODO this should come from the config file
     public String host = "localhost";
     public int port = 8182;
@@ -40,10 +41,11 @@ public class LocalGremlinServer {
     
     // NOTE: The paths start with a "/". In windows it is a problem, we need to cut it out.
     private void rightPaths() {
-        if (isWindows) {
+        if (isWindows & !hasSetPath) {
             GREMLIN_SERVER_CONF_PATH = GREMLIN_SERVER_CONF_PATH.substring(1);
             TINKERGRAPH_EMPTY_PROPERTIES_PATH = TINKERGRAPH_EMPTY_PROPERTIES_PATH.substring(1);
             EMPTY_SAMPLE_GROOVY_PATH = EMPTY_SAMPLE_GROOVY_PATH.substring(1);
+            hasSetPath = true;
         }
     }
 

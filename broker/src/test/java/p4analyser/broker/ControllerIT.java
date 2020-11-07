@@ -19,6 +19,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
+import org.apache.commons.lang3.SystemUtils;
+
+
 public class ControllerIT {
 
     private static ClassLoader loader = Thread.currentThread().getContextClassLoader();
@@ -31,17 +34,17 @@ public class ControllerIT {
 
     public static void main(String[] args) {
         System.out.println("ControllerIT - has started");
+        rightPaths();     
 
-        ControllerIT app = new ControllerIT();
         jsonHandler = new JsonHandler("tests.json");
         FailsHandler.initFails();
 
         HashMap<String, ArrayList<String>> fileInfo = jsonHandler.getFileTestInfo();
         for (String fileName : fileInfo.keySet()) {
+            ControllerIT app = new ControllerIT();
             app.start(fileName, fileInfo.get(fileName));
-        }
-        
-        app.close();
+            app.close();
+        }        
         
         FailsHandler.reportFails();
         FailsHandler.deleteFails();
@@ -100,6 +103,13 @@ public class ControllerIT {
         
         p.executeTarget("test");
         rewriteBadSolutionForDepends(propertyListString);
+    }
+
+    private static Boolean isWindows = SystemUtils.OS_NAME.contains("Windows");
+    private static void rightPaths() {
+        if (isWindows) {
+            BROKER_DEFINITION_PATH = BROKER_DEFINITION_PATH.substring(1);
+        }
     }
 
     private void badSolutionForDepends (String depends) {
