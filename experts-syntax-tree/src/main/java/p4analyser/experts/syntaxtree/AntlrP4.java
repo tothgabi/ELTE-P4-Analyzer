@@ -13,12 +13,15 @@ import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
+import org.codejargon.feather.Provides;
 
 import p4analyser.experts.syntaxtree.p4.P4Lexer;
 import p4analyser.experts.syntaxtree.p4.P4Parser;
+import p4analyser.ontology.injectable.CoreP4File;
+import p4analyser.ontology.injectable.InputP4File;
+import p4analyser.ontology.injectable.SyntaxTreeAnalysis;
+import p4analyser.ontology.injectable.V1ModelP4File;
 
-import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
-import org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 
 import java.io.File;
@@ -36,20 +39,12 @@ import java.util.concurrent.Executors;
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.transform.TransformerException;
 
-public class AntlrP4 
-{
-    private static final ClassLoader loader = Thread.currentThread().getContextClassLoader();
-    public static final String CORE_P4 = loader.getResource("core.p4").getPath().toString();
-    public static final String V1MODEL_P4 = loader.getResource("v1model.p4").getPath().toString();
-    public static final String BASIC_P4 = loader.getResource("basic.p4").getPath().toString();
+public class AntlrP4 {
 
-    public static void main( String[] args ) throws IOException
+    @Provides
+    @SyntaxTreeAnalysis
+    public static Boolean analyse(GraphTraversalSource g, @InputP4File File inputP4, @CoreP4File File coreP4, @V1ModelP4File File v1Model) throws IOException
     {
-       String host = args[0];
-       int port = Integer.parseInt(args[1]);
-       String remoteTraversalSourceName = args[2];
-       String p4ProgramSourceName = loader.getResource(args[3]).getPath();
-
 
 // // Antlr4 P4 parser generation is now automatically managed by Maven. 
 // // In case of emergency, this can also generate P4Lexer class and P4Parser class along with the P4BaseVisitor class:
@@ -62,16 +57,20 @@ public class AntlrP4
         // Using C preprocessor to resolve includes. 
         // JCPP-Antlr integration from here: https://stackoverflow.com/a/25358397
         // Note that includes are huge, they slow down everything, and many things can be analysed without them.
-        Preprocessor pp = new Preprocessor(new File(p4ProgramSourceName));
+        Preprocessor pp = new Preprocessor(inputP4);
         List<String> systemInclude = new ArrayList<String>();
 
-        if(!new File(CORE_P4).getParent().equals(new File(V1MODEL_P4).getParent()))
-                throw new IllegalStateException("!new File(CORE_P4).getParent().equals(new File(V1MODEL_P4).getParent())");
-        systemInclude.add(new File(CORE_P4).getParent());   
+        // TODO it would be more elegant to add the parent dir of v1Model as well
+        if(!coreP4.getParent().equals(v1Model.getParent())){
+                pp.close();
+                throw new IllegalStateException("!coreP4.getParent().equals(v1Model.getParent())");
+        }
+        systemInclude.add(coreP4.getParent());   
 
         pp.setSystemIncludePath(systemInclude);
         
         P4Lexer lexer = new P4Lexer(CharStreams.fromReader(new CppReader(pp)));
+        pp.close();
         TokenStream tokenStream = new CommonTokenStream(lexer);
 
         P4Parser parser = new P4Parser(tokenStream);
@@ -80,14 +79,9 @@ public class AntlrP4
 //        displayNativeAntlrTree(parser, tree);
 //        antlrParseTreeToXML(tree);
 
-//        Graph graph = TinkerGraph.open();
-//        GraphTraversalSource g = graph.traversal();
-        GraphTraversalSource g = 
-            AnonymousTraversalSource
-                    .traversal()
-                    .withRemote(DriverRemoteConnection.using(host, port, remoteTraversalSourceName));
-
         TinkerGraphParseTree.fromParseTree(g, tree, lexer.getVocabulary(), parser.getRuleNames());
+
+        return true;
     }
 
     private static void displayNativeAntlrTree(P4Parser parser, ParseTree tree) {

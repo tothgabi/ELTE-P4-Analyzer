@@ -1,0 +1,120 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Debug (Launch)-App<broker>",
+            "request": "launch",
+            "mainClass": "p4analyser.broker.App",
+            "projectName": "broker",
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch) - Current File",
+            "request": "launch",
+            "mainClass": "${file}",
+            "args": []
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-App<blackboard>",
+            "request": "launch",
+            "mainClass": "p4analyser.blackboard.App",
+            "projectName": "blackboard"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-ControllerIT<broker>",
+            "request": "launch",
+            "mainClass": "p4analyser.broker.ControllerIT",
+            "projectName": "broker"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-AliasesITs<broker>",
+            "request": "launch",
+            "mainClass": "p4analyser.broker.tests.AliasesITs",
+            "projectName": "broker"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-CallGraphGeneratorITs<broker>",
+            "request": "launch",
+            "mainClass": "p4analyser.broker.tests.CallGraphGeneratorITs",
+            "projectName": "broker"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-SymbolTableITs<broker>",
+            "request": "launch",
+            "mainClass": "p4analyser.broker.tests.SymbolTableITs",
+            "projectName": "broker"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-Aliases<experts-aliases>",
+            "request": "launch",
+            "mainClass": "p4analyser.experts.aliases.Aliases",
+            "projectName": "experts-aliases"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-CallGraphGenerator<experts-call-graph>",
+            "request": "launch",
+            "mainClass": "p4analyser.experts.callgraph.CallGraphGenerator",
+            "projectName": "experts-call-graph"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-CallSites<experts-call-sites>",
+            "request": "launch",
+            "mainClass": "p4analyser.experts.callsites.CallSites",
+            "projectName": "experts-call-sites"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-ControlFlow<experts-control-flow>",
+            "request": "launch",
+            "mainClass": "p4analyser.experts.controlflow.ControlFlow",
+            "projectName": "experts-control-flow"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-App<experts-demo>",
+            "request": "launch",
+            "mainClass": "p4analyser.experts.demo.App",
+            "projectName": "experts-demo"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-Normalisation<experts-normalised-syntax-tree>",
+            "request": "launch",
+            "mainClass": "p4analyser.experts.normalisation.Normalisation",
+            "projectName": "experts-normalised-syntax-tree"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-SymbolTable<experts-symbol-table>",
+            "request": "launch",
+            "mainClass": "p4analyser.experts.symboltable.SymbolTable",
+            "projectName": "experts-symbol-table"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-AntlrP4<experts-syntax-tree>",
+            "request": "launch",
+            "mainClass": "p4analyser.experts.syntaxtree.AntlrP4",
+            "projectName": "experts-syntax-tree"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-Printer<experts-visualisation>",
+            "request": "launch",
+            "mainClass": "p4analyser.experts.visualisation.Printer",
+            "projectName": "experts-visualisation"
+        }
+    ]
+}

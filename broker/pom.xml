@@ -23,9 +23,16 @@
 
   <dependencies>
     <dependency>
-      <groupId>org.apache.ant</groupId>
-      <artifactId>ant</artifactId>
-      <version>1.10.9</version>
+        <groupId>org.codejargon.feather</groupId>
+        <artifactId>feather</artifactId>
+        <version>1.0</version>
+    </dependency>
+
+
+    <dependency>
+      <groupId>p4analyser</groupId>
+      <artifactId>ontology</artifactId>
+      <version>1.0-SNAPSHOT</version>
     </dependency>
 
     <dependency>
@@ -38,28 +45,24 @@
       <groupId>p4analyser</groupId>
       <artifactId>experts-visualisation</artifactId>
       <version>1.0-SNAPSHOT</version>
-      <scope>runtime</scope>
     </dependency>
 
     <dependency>
       <groupId>p4analyser</groupId>
       <artifactId>experts-call-graph</artifactId>
       <version>1.0-SNAPSHOT</version>
-      <scope>runtime</scope>
     </dependency>
 
     <dependency>
       <groupId>p4analyser</groupId>
       <artifactId>experts-symbol-table</artifactId>
       <version>1.0-SNAPSHOT</version>
-      <scope>runtime</scope>
     </dependency>
 
     <dependency>
       <groupId>p4analyser</groupId>
       <artifactId>experts-aliases</artifactId>
       <version>1.0-SNAPSHOT</version>
-      <scope>runtime</scope>
     </dependency>
 
 
@@ -67,35 +70,30 @@
       <groupId>p4analyser</groupId>
       <artifactId>experts-syntax-tree</artifactId>
       <version>1.0-SNAPSHOT</version>
-      <scope>runtime</scope>
     </dependency>
 
     <dependency>
       <groupId>p4analyser</groupId>
       <artifactId>experts-demo</artifactId>
       <version>1.0-SNAPSHOT</version>
-      <scope>runtime</scope>
     </dependency>
 
     <dependency>
       <groupId>p4analyser</groupId>
       <artifactId>experts-normalised-syntax-tree</artifactId>
       <version>1.0-SNAPSHOT</version>
-      <scope>runtime</scope>
     </dependency>
 
     <dependency>
       <groupId>p4analyser</groupId>
       <artifactId>experts-call-sites</artifactId>
       <version>1.0-SNAPSHOT</version>
-      <scope>runtime</scope>
     </dependency>
 
     <dependency>
       <groupId>p4analyser</groupId>
       <artifactId>experts-control-flow</artifactId>
       <version>1.0-SNAPSHOT</version>
-      <scope>runtime</scope>
     </dependency>
 
     <dependency>
@@ -118,10 +116,37 @@
     </dependency>
   </dependencies>
 
+
   <build>
 
     <pluginManagement><!-- lock down plugins versions to avoid using Maven defaults (may be moved to parent pom) -->
       <plugins>
+        <plugin>
+          <groupId>org.codehaus.mojo</groupId>
+          <artifactId>exec-maven-plugin</artifactId>
+          <version>1.2.1</version>
+          <executions>
+            <execution>
+              <goals>
+                <goal>java</goal>
+              </goals>
+            </execution>
+          </executions>
+          <configuration>
+
+            <skip>false</skip>
+            <!--
+            <properties><projects>broker</projects></properties>
+            <properties><exec.mainClass>p4analyser.broker.App</exec.mainClass></properties>
+            -->
+            <mainClass>p4analyser.broker.App</mainClass>
+            <arguments>
+              <argument>--help</argument>
+            </arguments>
+          </configuration>
+        </plugin>
+
+
         <!-- clean lifecycle, see https://maven.apache.org/ref/current/maven-core/lifecycles.html#clean_Lifecycle -->
         <plugin>
           <artifactId>maven-clean-plugin</artifactId>

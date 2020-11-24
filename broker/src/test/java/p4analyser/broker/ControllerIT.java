@@ -88,9 +88,9 @@ public class ControllerIT {
         consoleLogger.setMessageOutputLevel(Project.MSG_INFO);
         p.addBuildListener(consoleLogger);
 
-        p.setProperty("host", server.host);
-        p.setProperty("port", Integer.toString(server.port));
-        p.setProperty("remoteTraversalSourceName", server.remoteTraversalSourceName);
+        p.setProperty("host", "localhost");
+        p.setProperty("port", Integer.toString(8182));
+        p.setProperty("remoteTraversalSourceName", "g");
         p.setProperty("p4ProgramSourceName", fileName);
         p.setProperty("optinalTestXml", "false");
         

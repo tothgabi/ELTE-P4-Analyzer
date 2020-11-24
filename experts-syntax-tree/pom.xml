@@ -24,6 +24,11 @@
   <dependencies>
 
 
+    <dependency>
+        <groupId>org.codejargon.feather</groupId>
+        <artifactId>feather</artifactId>
+        <version>1.0</version>
+    </dependency>
 
       <dependency>
         <groupId>org.anarres</groupId>
