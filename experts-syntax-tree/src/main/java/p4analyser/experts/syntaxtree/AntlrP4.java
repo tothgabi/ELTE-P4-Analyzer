@@ -17,10 +17,10 @@ import org.codejargon.feather.Provides;
 
 import p4analyser.experts.syntaxtree.p4.P4Lexer;
 import p4analyser.experts.syntaxtree.p4.P4Parser;
-import p4analyser.ontology.injectable.CoreP4File;
-import p4analyser.ontology.injectable.InputP4File;
-import p4analyser.ontology.injectable.SyntaxTreeAnalysis;
-import p4analyser.ontology.injectable.V1ModelP4File;
+import p4analyser.ontology.providers.SyntaxTreeProvider;
+import p4analyser.ontology.providers.P4FileProvider.CoreP4File;
+import p4analyser.ontology.providers.P4FileProvider.InputP4File;
+import p4analyser.ontology.providers.P4FileProvider.V1ModelP4File;
 
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 
@@ -39,11 +39,11 @@ import java.util.concurrent.Executors;
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.transform.TransformerException;
 
-public class AntlrP4 {
+public class AntlrP4 implements SyntaxTreeProvider {
 
     @Provides
-    @SyntaxTreeAnalysis
-    public static Boolean analyse(GraphTraversalSource g, @InputP4File File inputP4, @CoreP4File File coreP4, @V1ModelP4File File v1Model) throws IOException
+    @SyntaxTree
+    public Object analyse(GraphTraversalSource g, @InputP4File File inputP4, @CoreP4File File coreP4, @V1ModelP4File File v1Model) throws IOException
     {
 
 // // Antlr4 P4 parser generation is now automatically managed by Maven. 

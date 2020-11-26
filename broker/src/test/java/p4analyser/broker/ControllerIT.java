@@ -11,7 +11,8 @@ import org.apache.tools.ant.ProjectHelper;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -20,7 +21,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 import org.apache.commons.lang3.SystemUtils;
-
 
 public class ControllerIT {
 
@@ -32,9 +32,9 @@ public class ControllerIT {
 
     public static JsonHandler jsonHandler;
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws InterruptedException, ExecutionException, TimeoutException {
         System.out.println("ControllerIT - has started");
-        rightPaths();     
+        rightPaths();
 
         jsonHandler = new JsonHandler("tests.json");
         FailsHandler.initFails();
@@ -44,21 +44,21 @@ public class ControllerIT {
             ControllerIT app = new ControllerIT();
             app.start(fileName, fileInfo.get(fileName));
             app.close();
-        }        
-        
+        }
+
         FailsHandler.reportFails();
         FailsHandler.deleteFails();
         System.out.println("ControllerIT - has finished");
 
         System.exit(0);
-    }   
+    }
 
-    private ControllerIT () {
+    private ControllerIT() {
         server = new LocalGremlinServer();
         server.start();
     }
 
-    private void close(){
+    private void close() throws InterruptedException, ExecutionException, TimeoutException {
         server.close();
     }
 

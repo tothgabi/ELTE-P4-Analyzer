@@ -4,9 +4,10 @@ import java.io.File;
 
 import org.codejargon.feather.Provides;
 
-import p4analyser.ontology.injectable.CoreP4File;
-import p4analyser.ontology.injectable.InputP4File;
-import p4analyser.ontology.injectable.V1ModelP4File;
+import p4analyser.ontology.providers.P4FileProvider.CoreP4File;
+import p4analyser.ontology.providers.P4FileProvider.InputP4File;
+import p4analyser.ontology.providers.P4FileProvider.V1ModelP4File;
+
 
 class P4FileService {
     private File inputP4;

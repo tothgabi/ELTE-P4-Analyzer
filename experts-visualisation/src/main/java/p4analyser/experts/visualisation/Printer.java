@@ -2,6 +2,8 @@ package p4analyser.experts.visualisation;
 
 import java.io.IOException;
 
+import javax.inject.Inject;
+import javax.inject.Provider;
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.transform.TransformerException;
 
@@ -10,26 +12,18 @@ import org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 
 import p4analyser.experts.visualisation.GraphUtils.Label;
+import p4analyser.ontology.providers.SyntaxTreeProvider.SyntaxTree;
 
 public class Printer {
 
-    public static void main( String[] args ) throws IOException, TransformerException, InterruptedException {
-
-        String host = args[0];
-        int port = Integer.parseInt(args[1]);
-        String remoteTraversalSourceName = args[2];
-
-//        Graph graph = TinkerGraph.open();
-//        GraphTraversalSource g = graph.traversal();
-        GraphTraversalSource g = 
-            AnonymousTraversalSource
-                    .traversal()
-                    .withRemote(DriverRemoteConnection.using(host, port, remoteTraversalSourceName));
-
-//        printSyntaxTree(g);
+    public Printer(GraphTraversalSource g, Provider<Object> ensureSt, DrawCommand cmd)
+            throws IOException, TransformerException, InterruptedException {
+        ensureSt.get();
+        
+        printSyntaxTree(g);
 //        printSemanticGraph(g);
 //        printSymbol(g);
-        printCalls(g);
+//        printCalls(g);
 //        printCallSites(g);
 //        printCfg(g);
 

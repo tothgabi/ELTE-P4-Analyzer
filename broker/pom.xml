@@ -28,6 +28,11 @@
         <version>1.0</version>
     </dependency>
 
+    <dependency>
+      <groupId>com.beust</groupId>
+      <artifactId>jcommander</artifactId>
+      <version>1.78</version>
+    </dependency>
 
     <dependency>
       <groupId>p4analyser</groupId>
@@ -45,24 +50,28 @@
       <groupId>p4analyser</groupId>
       <artifactId>experts-visualisation</artifactId>
       <version>1.0-SNAPSHOT</version>
+      <scope>runtime</scope>
     </dependency>
 
     <dependency>
       <groupId>p4analyser</groupId>
       <artifactId>experts-call-graph</artifactId>
       <version>1.0-SNAPSHOT</version>
+      <scope>runtime</scope>
     </dependency>
 
     <dependency>
       <groupId>p4analyser</groupId>
       <artifactId>experts-symbol-table</artifactId>
       <version>1.0-SNAPSHOT</version>
+      <scope>runtime</scope>
     </dependency>
 
     <dependency>
       <groupId>p4analyser</groupId>
       <artifactId>experts-aliases</artifactId>
       <version>1.0-SNAPSHOT</version>
+      <scope>runtime</scope>
     </dependency>
 
 
@@ -70,30 +79,35 @@
       <groupId>p4analyser</groupId>
       <artifactId>experts-syntax-tree</artifactId>
       <version>1.0-SNAPSHOT</version>
+      <scope>runtime</scope>
     </dependency>
 
     <dependency>
       <groupId>p4analyser</groupId>
       <artifactId>experts-demo</artifactId>
       <version>1.0-SNAPSHOT</version>
+      <scope>runtime</scope>
     </dependency>
 
     <dependency>
       <groupId>p4analyser</groupId>
       <artifactId>experts-normalised-syntax-tree</artifactId>
       <version>1.0-SNAPSHOT</version>
+      <scope>runtime</scope>
     </dependency>
 
     <dependency>
       <groupId>p4analyser</groupId>
       <artifactId>experts-call-sites</artifactId>
       <version>1.0-SNAPSHOT</version>
+      <scope>runtime</scope>
     </dependency>
 
     <dependency>
       <groupId>p4analyser</groupId>
       <artifactId>experts-control-flow</artifactId>
       <version>1.0-SNAPSHOT</version>
+      <scope>runtime</scope>
     </dependency>
 
     <dependency>

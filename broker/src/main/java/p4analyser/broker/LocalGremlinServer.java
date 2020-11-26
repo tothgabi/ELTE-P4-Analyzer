@@ -6,6 +6,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
 
 import javax.inject.Singleton;
 
@@ -23,7 +25,8 @@ public class LocalGremlinServer {
     private static ClassLoader loader = Thread.currentThread().getContextClassLoader();
 
     private String GREMLIN_SERVER_CONF_PATH = loader.getResource("conf/gremlin-server-min.yaml").getPath();
-    private String TINKERGRAPH_EMPTY_PROPERTIES_PATH = loader.getResource("conf/tinkergraph-empty.properties").getPath();
+    private String TINKERGRAPH_EMPTY_PROPERTIES_PATH = loader.getResource("conf/tinkergraph-empty.properties")
+            .getPath();
     private String EMPTY_SAMPLE_GROOVY_PATH = loader.getResource("conf/empty-sample.groovy").getPath();
 
     {
@@ -35,32 +38,30 @@ public class LocalGremlinServer {
     private p4analyser.blackboard.App bb = null;
 
     @Singleton
-    @Provides 
-    public GraphTraversalSource start(){
+    @Provides
+    public GraphTraversalSource start() {
 
-//      cheap way:
-//        Graph graph = TinkerGraph.open();
-//        GraphTraversalSource g = graph.traversal();
-//        return g;
-
+        // cheap way:
+        // Graph graph = TinkerGraph.open();
+        // GraphTraversalSource g = graph.traversal();
+        // return g;
 
         bb = new p4analyser.blackboard.App(new String[] { "-c", GREMLIN_SERVER_CONF_PATH });
         bb.start();
 
-        // TODO read these from gremlin-server.min.yaml, otherwise the info have to maintained at two places
+        // TODO read these from gremlin-server.min.yaml, otherwise the info have to
+        // maintained at two places
         String host = "localhost";
         int port = 8182;
         String remoteTraversalSourceName = "g";
 
-        GraphTraversalSource g = 
-            AnonymousTraversalSource
-                    .traversal()
-                    .withRemote(DriverRemoteConnection.using(host, port, remoteTraversalSourceName));
+        GraphTraversalSource g = AnonymousTraversalSource.traversal()
+                .withRemote(DriverRemoteConnection.using(host, port, remoteTraversalSourceName));
 
         return g;
     }
 
-    public void close(){
+    public void close() throws InterruptedException, ExecutionException, TimeoutException {
         bb.close();
     }
     
