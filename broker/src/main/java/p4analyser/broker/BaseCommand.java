@@ -4,7 +4,7 @@ import com.beust.jcommander.Parameter;
 
 public class BaseCommand {
 
-    @Parameter(description = "<location of P4 file to be analysed>" /* required = true */ )
+    @Parameter(names={"--input", "-i"}, description = "<location of P4 file to be analysed>" /* required = true */ )
     String P4_FILEPATH;
 
     @Parameter(names={"--reset", "-R"}, description = "Reset persistent knowledge graph and run all the analysers again.")
