@@ -1,4 +1,4 @@
-package p4analyser.experts.visualisation;
+package p4analyser.applications.visualisation;
 
 import javax.xml.transform.Source;
 import javax.xml.transform.Transformer;

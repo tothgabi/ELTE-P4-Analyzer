@@ -1,12 +1,13 @@
 package p4analyser.broker;
 
+import java.lang.annotation.Annotation;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
-import java.util.NoSuchElementException;
-import java.util.ServiceLoader;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
@@ -15,9 +16,11 @@ import com.beust.jcommander.JCommander;
 
 import org.codejargon.feather.Feather;
 import org.codejargon.feather.Key;
+import org.reflections.Reflections;
+import org.reflections.scanners.MethodAnnotationsScanner;
 
-import p4analyser.ontology.providers.Application;
-import p4analyser.ontology.providers.SyntaxTreeAnalysis;
+import p4analyser.ontology.providers.ApplicationProvider;
+import p4analyser.ontology.providers.ApplicationProvider.Application;
 
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.ConfigurationException;
@@ -27,7 +30,12 @@ import org.apache.commons.lang3.SystemUtils;
 
 public class App {
 
-    private static final Class<?>[] providerIfaces = { SyntaxTreeAnalysis.class };
+//    private static final List<Class<? extends Annotation>> analyses =
+//        Arrays.asList(SyntaxTree.class);
+
+    private static final String EXPERTS_PACKAGE = "p4analyser.experts";
+    private static final String APPLICATIONS_PACKAGE = "p4analyser.applications";
+    private static final String ANALYSES_PACKAGE = "p4analyser.ontology.analyses";
 
     private static ClassLoader loader = Thread.currentThread().getContextClassLoader();
 
@@ -45,13 +53,12 @@ public class App {
     public static final String V1MODEL_P4 = loader.getResource("v1model.p4").getPath().toString();
     public static final String BASIC_P4 = loader.getResource("basic.p4").getPath().toString();
 
-    public static void main(String[] args) throws InterruptedException, ExecutionException, TimeoutException {
-        new App(args);
-    }
+    public static void main(String[] args) throws InterruptedException, ExecutionException, TimeoutException,
+            InstantiationException, IllegalAccessException, IllegalArgumentException, InvocationTargetException,
+            NoSuchMethodException, SecurityException {
+//        Reflections appReflections = new Reflections("p4analyser.experts", new MethodAnnotationsScanner());
 
-    public App(String[] args) throws InterruptedException, ExecutionException, TimeoutException {
-
-        Map<String, Application> apps = discoverApplications();
+        Map<String, ApplicationProvider> apps = discoverApplications();
         Map<String, Object> appCmds = appCommands(apps); // local copies to avoid storing stuff inside the providers
 
         BaseCommand base = new BaseCommand();
@@ -59,7 +66,7 @@ public class App {
         JCommander.Builder jcb = JCommander.newBuilder();
         jcb.addObject(base);
 
-        for (Application app : apps.values()) {
+        for (ApplicationProvider app : apps.values()) {
             String cmdName = app.getUICommandName();
             jcb.addCommand(cmdName, appCmds.get(cmdName), app.getUICommandAliases());
         }
@@ -91,39 +98,53 @@ public class App {
         P4FileService p4FileService = new P4FileService(base.P4_FILEPATH, CORE_P4, V1MODEL_P4);
         LocalGremlinServer server = new LocalGremlinServer();
 
-        List<Object> deps = new ArrayList<>();
+        Collection<Object> deps = new ArrayList<>();
         deps.add(p4FileService);
         deps.add(server);
-        for (Class<?> providerIface : providerIfaces) {
-            deps.add(discoverUniqueProvider(providerIface));
+        for (Object analyser : discoverAnalysers()) {
+            deps.add(analyser);
         }
+
         deps.add(command);
         deps.add(apps.get(commandName));
 
-
         Feather feather = Feather.with(deps.toArray());
 
-        feather.provider(Application.class).get();
-//        feather.provider(Key.of(Object.class, ApplicationProvider.class)).get();
+        feather.provider(Key.of(Void.class, Application.class)).get();
 
         server.close();
         System.exit(0);
     }
 
-    public static Map<String, Object> appCommands(Map<String, Application> apps){
+    public static Map<String, Object> appCommands(Map<String, ApplicationProvider> apps){
         Map<String, Object> cmds = new HashMap<>();
-        for (Map.Entry<String, Application> entry : apps.entrySet()) {
+        for (Map.Entry<String, ApplicationProvider> entry : apps.entrySet()) {
             cmds.put(entry.getKey(), entry.getValue().getUICommand());
         }
         return cmds;
     }
 
-    public static Map<String, Application> discoverApplications(){
-        List<Application> applications = discoverAllProviders(Application.class);
-        if(applications.isEmpty())
-            throw new IllegalStateException("No application providers found");
-        Map<String, Application> apps = new HashMap<>();
-        for (Application app : applications) {
+    public static Map<String, ApplicationProvider> discoverApplications()
+            throws InstantiationException, IllegalAccessException, IllegalArgumentException, InvocationTargetException,
+            NoSuchMethodException, SecurityException {
+        Reflections reflections = new Reflections(APPLICATIONS_PACKAGE, new MethodAnnotationsScanner());
+
+        Set<Method> methods = reflections.getMethodsAnnotatedWith(Application.class);
+        if(methods.isEmpty()){
+            String msg = 
+                String.format("No applications found in " + APPLICATIONS_PACKAGE);
+            throw new IllegalStateException(msg);
+        }
+
+        Map<String, ApplicationProvider> apps = new HashMap<>();
+        for (Method m : methods) {
+            Object candid = m.getDeclaringClass().getConstructor().newInstance();
+            if(!(candid instanceof ApplicationProvider)){
+                throw new IllegalStateException(
+                    String.format("Application %s does not implement interface %s", 
+                                  ApplicationProvider.class.getSimpleName()));
+            }
+            ApplicationProvider app = (ApplicationProvider) candid;
             if(apps.get(app.getUICommandName()) != null)
                 throw new IllegalStateException("Ambiguous application name " + app.getUICommandName());
             apps.put(app.getUICommandName(), app);
@@ -132,31 +153,44 @@ public class App {
         return apps;
     }
 
-    public static <T> List<T> discoverAllProviders(Class<T> providerInterface){
-        ServiceLoader<T> loader = ServiceLoader.load(providerInterface);
-        return loader.stream().map(p -> p.get()).collect(Collectors.toList());
+    public static Collection<Object> discoverAnalysers() throws InstantiationException, IllegalAccessException,
+            IllegalArgumentException, InvocationTargetException, NoSuchMethodException, SecurityException {
+
+        Reflections reflections = new Reflections(EXPERTS_PACKAGE, new MethodAnnotationsScanner());
+
+        Collection<Object> analyserImplemms = new ArrayList<>();
+        for (Class<? extends Annotation> analysis : discoverAnalyses()) {
+            Set<Method> methods = reflections.getMethodsAnnotatedWith(analysis);
+            if(methods.isEmpty()){
+                String msg = 
+                    String.format("No implementation found in %s for analysis %s",
+                    EXPERTS_PACKAGE,
+                    analysis.getSimpleName());
+                throw new IllegalStateException(msg);
+            }
+
+            Collection<Class<?>> implems = methods.stream().map(m -> m.getDeclaringClass()).collect(Collectors.toList());
+            if(implems.size() > 1){
+                String msg = 
+                    String.format("Ambigous implementations found in %s for analysis %s: %s",
+                                EXPERTS_PACKAGE,
+                                analysis.getSimpleName(),
+                                implems.stream().map(c -> c.getSimpleName()).toArray());
+                throw new IllegalStateException(msg);
+            }
+
+            analyserImplemms.add(implems.iterator().next().getConstructor().newInstance());
+        }
+        return analyserImplemms;
     }
 
-    public static <T> T discoverUniqueProvider(Class<T> providerInterface){
-        ServiceLoader<T> loader = ServiceLoader.load(providerInterface);
-        Iterator<T> it = loader.iterator();
+    public static Collection<Class<? extends Annotation>> discoverAnalyses() {
+        Reflections reflections = new Reflections(ANALYSES_PACKAGE);
 
-        if( !(it.hasNext())) 
-            throw new IllegalStateException("No provider found for provider interface " + providerInterface.getSimpleName());
+        Set<Class<? extends Annotation>> analyses = 
+            reflections.getSubTypesOf(Annotation.class);
 
-        T providerImplem = it.next();
-
-        if(it.hasNext()) {
-            T providerImplem2 = it.next();
-            String msg = 
-                String.format("Ambigous implemententations found for provider interface %s. Both %s and %s implement this interface.",
-                              providerInterface.getSimpleName(),
-                              providerImplem.getClass().getSimpleName(),
-                              providerImplem2.getClass().getSimpleName());
-            throw new IllegalStateException(msg); 
-        }
-
-        return providerImplem;
+        return analyses;
 
     }
 

@@ -1,4 +1,4 @@
-package p4analyser.experts.visualisation;
+package p4analyser.applications.visualisation;
 
 import java.io.IOException;
 
@@ -11,12 +11,12 @@ import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
 import org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 
-import p4analyser.experts.visualisation.GraphUtils.Label;
-import p4analyser.ontology.providers.SyntaxTreeAnalysis;
+import p4analyser.applications.visualisation.GraphUtils.Label;
+import p4analyser.ontology.analyses.SyntaxTree;
 
 public class Printer {
 
-    public Printer(GraphTraversalSource g, Provider<SyntaxTreeAnalysis> ensureSt, DrawCommand cmd)
+    public Printer(GraphTraversalSource g, @SyntaxTree Provider<Void> ensureSt, DrawCommand cmd)
             throws IOException, TransformerException, InterruptedException {
         ensureSt.get();
         
