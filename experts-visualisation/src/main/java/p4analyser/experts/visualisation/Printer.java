@@ -12,11 +12,11 @@ import org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 
 import p4analyser.experts.visualisation.GraphUtils.Label;
-import p4analyser.ontology.providers.SyntaxTreeProvider.SyntaxTree;
+import p4analyser.ontology.providers.SyntaxTreeAnalysis;
 
 public class Printer {
 
-    public Printer(GraphTraversalSource g, Provider<Object> ensureSt, DrawCommand cmd)
+    public Printer(GraphTraversalSource g, Provider<SyntaxTreeAnalysis> ensureSt, DrawCommand cmd)
             throws IOException, TransformerException, InterruptedException {
         ensureSt.get();
         

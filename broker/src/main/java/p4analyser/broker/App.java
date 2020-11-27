@@ -16,10 +16,8 @@ import com.beust.jcommander.JCommander;
 import org.codejargon.feather.Feather;
 import org.codejargon.feather.Key;
 
-import p4analyser.ontology.providers.ApplicationProvider;
-import p4analyser.ontology.providers.SyntaxTreeProvider;
-import p4analyser.ontology.providers.ApplicationProvider.Application;
-import p4analyser.ontology.providers.SyntaxTreeProvider.SyntaxTree;
+import p4analyser.ontology.providers.Application;
+import p4analyser.ontology.providers.SyntaxTreeAnalysis;
 
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.ConfigurationException;
@@ -29,7 +27,7 @@ import org.apache.commons.lang3.SystemUtils;
 
 public class App {
 
-    private static final Class<?>[] providerIfaces = { SyntaxTreeProvider.class };
+    private static final Class<?>[] providerIfaces = { SyntaxTreeAnalysis.class };
 
     private static ClassLoader loader = Thread.currentThread().getContextClassLoader();
 
@@ -53,7 +51,7 @@ public class App {
 
     public App(String[] args) throws InterruptedException, ExecutionException, TimeoutException {
 
-        Map<String, ApplicationProvider> apps = discoverApplications();
+        Map<String, Application> apps = discoverApplications();
         Map<String, Object> appCmds = appCommands(apps); // local copies to avoid storing stuff inside the providers
 
         BaseCommand base = new BaseCommand();
@@ -61,7 +59,7 @@ public class App {
         JCommander.Builder jcb = JCommander.newBuilder();
         jcb.addObject(base);
 
-        for (ApplicationProvider app : apps.values()) {
+        for (Application app : apps.values()) {
             String cmdName = app.getUICommandName();
             jcb.addCommand(cmdName, appCmds.get(cmdName), app.getUICommandAliases());
         }
@@ -105,26 +103,27 @@ public class App {
 
         Feather feather = Feather.with(deps.toArray());
 
-        feather.provider(Key.of(Object.class, Application.class)).get();
+        feather.provider(Application.class).get();
+//        feather.provider(Key.of(Object.class, ApplicationProvider.class)).get();
 
         server.close();
         System.exit(0);
     }
 
-    public static Map<String, Object> appCommands(Map<String, ApplicationProvider> apps){
+    public static Map<String, Object> appCommands(Map<String, Application> apps){
         Map<String, Object> cmds = new HashMap<>();
-        for (Map.Entry<String, ApplicationProvider> entry : apps.entrySet()) {
+        for (Map.Entry<String, Application> entry : apps.entrySet()) {
             cmds.put(entry.getKey(), entry.getValue().getUICommand());
         }
         return cmds;
     }
 
-    public static Map<String, ApplicationProvider> discoverApplications(){
-        List<ApplicationProvider> applications = discoverAllProviders(ApplicationProvider.class);
+    public static Map<String, Application> discoverApplications(){
+        List<Application> applications = discoverAllProviders(Application.class);
         if(applications.isEmpty())
             throw new IllegalStateException("No application providers found");
-        Map<String, ApplicationProvider> apps = new HashMap<>();
-        for (ApplicationProvider app : applications) {
+        Map<String, Application> apps = new HashMap<>();
+        for (Application app : applications) {
             if(apps.get(app.getUICommandName()) != null)
                 throw new IllegalStateException("Ambiguous application name " + app.getUICommandName());
             apps.put(app.getUICommandName(), app);

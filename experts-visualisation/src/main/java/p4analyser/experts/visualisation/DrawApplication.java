@@ -2,8 +2,8 @@ package p4analyser.experts.visualisation;
 
 import org.codejargon.feather.Provides;
 
-import p4analyser.ontology.providers.ApplicationProvider;
-import p4analyser.ontology.providers.SyntaxTreeProvider.SyntaxTree;
+import p4analyser.ontology.providers.Application;
+import p4analyser.ontology.providers.SyntaxTreeAnalysis;
 
 import java.io.IOException;
 
@@ -12,7 +12,7 @@ import javax.xml.transform.TransformerException;
 
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 
-public class DrawApplicationProvider implements ApplicationProvider {
+public class DrawApplication implements Application {
 
     @Override
     public String getUICommandName() {
@@ -26,11 +26,10 @@ public class DrawApplicationProvider implements ApplicationProvider {
     }
 
     @Provides
-    @Application
-    public Object run(GraphTraversalSource g, @SyntaxTree Provider<Object> ensureSt, DrawCommand cmd)
+    public Application run(GraphTraversalSource g, Provider<SyntaxTreeAnalysis> ensureSt, DrawCommand cmd)
             throws IOException, TransformerException, InterruptedException {
         new Printer(g, ensureSt, cmd);
-        return true;
+        return null;
     }
 
     @Override

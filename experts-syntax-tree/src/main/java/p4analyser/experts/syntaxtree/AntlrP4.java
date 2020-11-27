@@ -17,7 +17,7 @@ import org.codejargon.feather.Provides;
 
 import p4analyser.experts.syntaxtree.p4.P4Lexer;
 import p4analyser.experts.syntaxtree.p4.P4Parser;
-import p4analyser.ontology.providers.SyntaxTreeProvider;
+import p4analyser.ontology.providers.SyntaxTreeAnalysis;
 import p4analyser.ontology.providers.P4FileProvider.CoreP4File;
 import p4analyser.ontology.providers.P4FileProvider.InputP4File;
 import p4analyser.ontology.providers.P4FileProvider.V1ModelP4File;
@@ -39,11 +39,10 @@ import java.util.concurrent.Executors;
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.transform.TransformerException;
 
-public class AntlrP4 implements SyntaxTreeProvider {
+public class AntlrP4 implements SyntaxTreeAnalysis {
 
     @Provides
-    @SyntaxTree
-    public Object analyse(GraphTraversalSource g, @InputP4File File inputP4, @CoreP4File File coreP4, @V1ModelP4File File v1Model) throws IOException
+    public SyntaxTreeAnalysis analyse(GraphTraversalSource g, @InputP4File File inputP4, @CoreP4File File coreP4, @V1ModelP4File File v1Model) throws IOException
     {
 
 // // Antlr4 P4 parser generation is now automatically managed by Maven. 
@@ -81,7 +80,7 @@ public class AntlrP4 implements SyntaxTreeProvider {
 
         TinkerGraphParseTree.fromParseTree(g, tree, lexer.getVocabulary(), parser.getRuleNames());
 
-        return true;
+        return null;
     }
 
     private static void displayNativeAntlrTree(P4Parser parser, ParseTree tree) {
