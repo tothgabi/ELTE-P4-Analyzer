@@ -82,7 +82,6 @@ public class App {
         String commandName = jc.getParsedCommand();
         Object command = appCmds.get(commandName);
 
-        System.out.println("Command:" + command.toString());
 
         if (base.help) {
             jc.usage();
@@ -95,6 +94,7 @@ public class App {
             System.exit(1);
         }
 
+        System.out.println("Command:" + command.toString());
 
         if (base.P4_FILEPATH == null) {
             System.out.println("warning: no P4 input file argument provided, using basic.p4");
