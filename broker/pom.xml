@@ -90,20 +90,6 @@
 
     <dependency>
       <groupId>p4analyser</groupId>
-      <artifactId>experts-demo</artifactId>
-      <version>1.0-SNAPSHOT</version>
-      <scope>runtime</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>p4analyser</groupId>
-      <artifactId>experts-normalised-syntax-tree</artifactId>
-      <version>1.0-SNAPSHOT</version>
-      <scope>runtime</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>p4analyser</groupId>
       <artifactId>experts-call-sites</artifactId>
       <version>1.0-SNAPSHOT</version>
       <scope>runtime</scope>

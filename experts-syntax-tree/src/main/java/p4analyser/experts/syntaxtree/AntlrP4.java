@@ -17,6 +17,7 @@ import org.codejargon.feather.Provides;
 
 import p4analyser.experts.syntaxtree.p4.P4Lexer;
 import p4analyser.experts.syntaxtree.p4.P4Parser;
+import p4analyser.ontology.Status;
 import p4analyser.ontology.analyses.SyntaxTree;
 import p4analyser.ontology.providers.P4FileProvider.CoreP4File;
 import p4analyser.ontology.providers.P4FileProvider.InputP4File;
@@ -36,15 +37,18 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import javax.inject.Singleton;
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.transform.TransformerException;
 
 public class AntlrP4 {
 
     @Provides
+    @Singleton
     @SyntaxTree
-    public Void analyse(GraphTraversalSource g, @InputP4File File inputP4, @CoreP4File File coreP4, @V1ModelP4File File v1Model) throws IOException
+    public Status analyse(GraphTraversalSource g, @InputP4File File inputP4, @CoreP4File File coreP4, @V1ModelP4File File v1Model) throws IOException
     {
+        System.out.println(SyntaxTree.class.getSimpleName() +" started.");
 
 // // Antlr4 P4 parser generation is now automatically managed by Maven. 
 // // In case of emergency, this can also generate P4Lexer class and P4Parser class along with the P4BaseVisitor class:
@@ -81,7 +85,9 @@ public class AntlrP4 {
 
         TinkerGraphParseTree.fromParseTree(g, tree, lexer.getVocabulary(), parser.getRuleNames());
 
-        return null;
+        System.out.println(SyntaxTree.class.getSimpleName() +" complete.");
+
+        return new Status();
     }
 
     private static void displayNativeAntlrTree(P4Parser parser, ParseTree tree) {

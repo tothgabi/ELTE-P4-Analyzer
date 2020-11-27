@@ -1,7 +1,10 @@
 package p4analyser.experts.symboltable;
 
-
 import p4analyser.ontology.Dom;
+import p4analyser.ontology.Status;
+import p4analyser.ontology.analyses.AbstractSyntaxTree;
+import p4analyser.ontology.analyses.SymbolTable;
+import p4analyser.ontology.analyses.SyntaxTree;
 
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
 import org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource;
@@ -16,36 +19,27 @@ import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.util.function.Lambda;
+import org.codejargon.feather.Provides;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.BulkSet;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+import javax.inject.Singleton;
 
-public class SymbolTable 
+
+public class SymbolTableImpl 
 {
-    public static void main( String[] args )
-    {
-        String host = args[0];
-        int port = Integer.parseInt(args[1]);
-        String remoteTraversalSourceName = args[2];
-
-        GraphTraversalSource g = 
-            AnonymousTraversalSource
-                    .traversal()
-                    .withRemote(DriverRemoteConnection.using(host, port, remoteTraversalSourceName));
-
-        analyse(g);
-
-        System.out.println("OK");
-
-    }
-
 
     // NOTE syntax maybe too permissive with expressions: (~ (13 >> true) . etherType) is a syntactically valid expression, even though '~', '>>', and '.' are reserved tokens. for this reason I decided to handle case-by-case
 
-    public static void analyse(GraphTraversalSource g){
+    @Provides
+    @Singleton
+    @SymbolTable
+    public Status analyse(GraphTraversalSource g, @SyntaxTree Status s, @AbstractSyntaxTree Status a){
+        System.out.println(SymbolTable.class.getSimpleName() +" started.");
+
         resolveNames(g);
         resolveTypeRefs(g);
         parserStateScopes(g);
@@ -56,6 +50,9 @@ public class SymbolTable
         tableApps(g);
         packageInstantiations(g);
         controlAndParserInstantiations(g);
+
+        System.out.println(SymbolTable.class.getSimpleName() +" complete.");
+        return new Status();
     }
 
 

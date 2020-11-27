@@ -37,8 +37,8 @@ public class LocalGremlinServer {
     private static Boolean isWindows = SystemUtils.OS_NAME.contains("Windows");
     private p4analyser.blackboard.App bb = null;
 
-    @Singleton
     @Provides
+    @Singleton
     public GraphTraversalSource start() {
 
         // cheap way:
@@ -62,7 +62,8 @@ public class LocalGremlinServer {
     }
 
     public void close() throws InterruptedException, ExecutionException, TimeoutException {
-        bb.close();
+        if(bb!=null)
+            bb.close();
     }
     
     // NOTE: The paths start with a "/". In windows it is a problem, we need to cut it out.

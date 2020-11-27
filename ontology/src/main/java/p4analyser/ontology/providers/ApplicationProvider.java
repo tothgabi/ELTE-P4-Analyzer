@@ -7,7 +7,7 @@ import javax.inject.Qualifier;
 
 public interface ApplicationProvider {
     public String getUICommandName();
-    public Object getUICommand();
+    public Class<?> getUICommand();
     public String[] getUICommandAliases();
 
     @Qualifier

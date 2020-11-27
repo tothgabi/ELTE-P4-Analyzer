@@ -10,7 +10,6 @@
   <modules>  
     <module>broker</module>
     <module>blackboard</module>
-    <module>experts-demo</module>
     <module>experts-syntax-tree</module>
     <module>ontology</module>
     <module>experts-call-graph</module>
@@ -19,7 +18,6 @@
     <module>experts-aliases</module>
     <module>experts-control-flow</module>
     <module>experts-call-sites</module>
-    <module>experts-normalised-syntax-tree</module>
   </modules>
 
   <name>p4analyser</name>

@@ -19,6 +19,9 @@ import org.codejargon.feather.Key;
 import org.reflections.Reflections;
 import org.reflections.scanners.MethodAnnotationsScanner;
 
+import p4analyser.ontology.Status;
+import p4analyser.ontology.analyses.AbstractSyntaxTree;
+import p4analyser.ontology.analyses.ControlFlow;
 import p4analyser.ontology.providers.ApplicationProvider;
 import p4analyser.ontology.providers.ApplicationProvider.Application;
 
@@ -61,6 +64,8 @@ public class App {
         Map<String, ApplicationProvider> apps = discoverApplications();
         Map<String, Object> appCmds = appCommands(apps); // local copies to avoid storing stuff inside the providers
 
+        System.out.println("Applications discovered:" + apps);
+
         BaseCommand base = new BaseCommand();
 
         JCommander.Builder jcb = JCommander.newBuilder();
@@ -68,7 +73,7 @@ public class App {
 
         for (ApplicationProvider app : apps.values()) {
             String cmdName = app.getUICommandName();
-            jcb.addCommand(cmdName, appCmds.get(cmdName), app.getUICommandAliases());
+            jcb.addCommand(cmdName, appCmds.get(cmdName));
         }
         
         JCommander jc = jcb.build();
@@ -77,12 +82,13 @@ public class App {
         String commandName = jc.getParsedCommand();
         Object command = appCmds.get(commandName);
 
+        System.out.println("Command:" + command.toString());
+
         if (base.help) {
             jc.usage();
             System.exit(0);
         }
 
-        System.out.println("command: " + commandName);
         if(commandName == null){
             System.out.println("Please, provide a command argument.");
             jc.usage();
@@ -101,7 +107,10 @@ public class App {
         Collection<Object> deps = new ArrayList<>();
         deps.add(p4FileService);
         deps.add(server);
-        for (Object analyser : discoverAnalysers()) {
+        Map<Class<? extends Annotation>, Object> analysers = discoverAnalysers();
+        System.out.println("Analysers discovered: " + analysers);
+
+        for (Object analyser : analysers.values()) {
             deps.add(analyser);
         }
 
@@ -110,16 +119,19 @@ public class App {
 
         Feather feather = Feather.with(deps.toArray());
 
-        feather.provider(Key.of(Void.class, Application.class)).get();
+        feather.provider(Key.of(Status.class, Application.class)).get();
 
         server.close();
         System.exit(0);
     }
 
-    public static Map<String, Object> appCommands(Map<String, ApplicationProvider> apps){
+    public static Map<String, Object> appCommands(Map<String, ApplicationProvider> apps)
+            throws InstantiationException, IllegalAccessException, IllegalArgumentException, InvocationTargetException,
+            NoSuchMethodException, SecurityException {
         Map<String, Object> cmds = new HashMap<>();
         for (Map.Entry<String, ApplicationProvider> entry : apps.entrySet()) {
-            cmds.put(entry.getKey(), entry.getValue().getUICommand());
+            Object command = entry.getValue().getUICommand().getConstructor().newInstance();
+            cmds.put(entry.getKey(), command);
         }
         return cmds;
     }
@@ -153,12 +165,12 @@ public class App {
         return apps;
     }
 
-    public static Collection<Object> discoverAnalysers() throws InstantiationException, IllegalAccessException,
+    public static Map<Class<? extends Annotation>, Object> discoverAnalysers() throws InstantiationException, IllegalAccessException,
             IllegalArgumentException, InvocationTargetException, NoSuchMethodException, SecurityException {
 
         Reflections reflections = new Reflections(EXPERTS_PACKAGE, new MethodAnnotationsScanner());
 
-        Collection<Object> analyserImplemms = new ArrayList<>();
+         Map<Class<? extends Annotation>, Object> analyserImplemms = new HashMap<>();
         for (Class<? extends Annotation> analysis : discoverAnalyses()) {
             Set<Method> methods = reflections.getMethodsAnnotatedWith(analysis);
             if(methods.isEmpty()){
@@ -179,7 +191,7 @@ public class App {
                 throw new IllegalStateException(msg);
             }
 
-            analyserImplemms.add(implems.iterator().next().getConstructor().newInstance());
+            analyserImplemms.put(analysis, implems.iterator().next().getConstructor().newInstance());
         }
         return analyserImplemms;
     }

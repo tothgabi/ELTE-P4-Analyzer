@@ -1,41 +1,41 @@
 package p4analyser.experts.callgraph;
 
+import javax.inject.Singleton;
+
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
 import org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
+import org.codejargon.feather.Provides;
 
 import p4analyser.ontology.Dom;
+import p4analyser.ontology.Status;
+import p4analyser.ontology.analyses.AbstractSyntaxTree;
+import p4analyser.ontology.analyses.CallGraph;
+import p4analyser.ontology.analyses.SymbolTable;
+import p4analyser.ontology.analyses.SyntaxTree;
 
 /**
  * Hello world!
  *
  */
 public class CallGraphGenerator {
-    public static void main( String[] args )
-    {
 
-        String host = args[0];
-        int port = Integer.parseInt(args[1]);
-        String remoteTraversalSourceName = args[2];
+    @Provides
+    @Singleton
+    @CallGraph
+    public Status analyse(GraphTraversalSource g, @SyntaxTree Status s, @AbstractSyntaxTree Status a, @SymbolTable Status t){
+        System.out.println(CallGraph.class.getSimpleName() +" started.");
 
-        GraphTraversalSource g = 
-            AnonymousTraversalSource
-                    .traversal()
-                    .withRemote(DriverRemoteConnection.using(host, port, remoteTraversalSourceName));
-
-        analyse(g);
-
-        System.out.println("OK");
-
-    }
-
-    public static void analyse(GraphTraversalSource g){
         whoCallsAction(g);
         whoCallsTable(g);
         whoCallsFunctionPrototype(g);
         whoCallsParserState(g);
         whoInvokesParsersAndControls(g);
+
+        System.out.println(CallGraph.class.getSimpleName() +" complete.");
+
+        return new Status();
     }
     public static void whoCallsTable(GraphTraversalSource g){
             g.V().hasLabel(Dom.SYN).has(Dom.Syn.V.CLASS, "TableDeclarationContext").as("decl")

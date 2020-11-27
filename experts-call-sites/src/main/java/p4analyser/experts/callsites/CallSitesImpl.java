@@ -4,6 +4,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+import javax.inject.Singleton;
+
 import org.apache.tinkerpop.gremlin.process.traversal.Order;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
@@ -11,22 +13,32 @@ import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.process.traversal.step.TraversalOptionParent.Pick;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.codejargon.feather.Provides;
 
 import p4analyser.ontology.Dom;
+import p4analyser.ontology.Status;
+import p4analyser.ontology.analyses.AbstractSyntaxTree;
+import p4analyser.ontology.analyses.CallSites;
+import p4analyser.ontology.analyses.SymbolTable;
+import p4analyser.ontology.analyses.SyntaxTree;
 
-public class SemanticAnalysis {
+public class CallSitesImpl {
 
     // NOTE P4 spec has almost nothing about type instantiations and method dispatch mechanisms.
     //      It is not clear whether packet.extract(...) refers to the extract method in the 'packet' namespace, where 'packet' is just an alias to 'packet_in', or
     //      it is actually a method call extract(packet, ...), where the definition of extract is selected based on the static type of 'packet'.
     //      The first case is simpler, so I went with this for now.
-    public static class CallSites {
         // TODO make this work for other kind of calls and functions
-        public static void analyse(GraphTraversalSource g){
+        @Provides
+        @Singleton
+        @CallSites
+        public Status analyse(GraphTraversalSource g, @SyntaxTree Status s, @AbstractSyntaxTree Status a, @SymbolTable Status t){
+            System.out.println( "Not implemented yet!" );
             whichCallInvokesWhichFunction(g);
             whichCallOwnsWhichArguments(g);
             whichFunctionOwnsWhichParameters(g);
             whichArgumentsInstantiateWhichParameters(g);
+            return new Status();
         }
         
         private static void whichCallInvokesWhichFunction(GraphTraversalSource g) {
@@ -118,8 +130,4 @@ public class SemanticAnalysis {
 
 
         }
-
-    }
-
-
 }

@@ -32,7 +32,7 @@ class SimpleProcess {
         executor.setExitValue(1);
 
         final DefaultExecuteResultHandler resultHandler = new DefaultExecuteResultHandler();
-        System.out.print("External process is running: " + String.join(" ", cmdLine.toStrings()));
+        System.out.println("External process is running: " + String.join(" ", cmdLine.toStrings()));
         executor.execute(cmdLine, resultHandler);
         logger.info(cmdLine.toString());
         resultHandler.waitFor();

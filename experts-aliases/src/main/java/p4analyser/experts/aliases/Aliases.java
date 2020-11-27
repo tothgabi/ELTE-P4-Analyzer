@@ -8,45 +8,43 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+import javax.inject.Singleton;
+
 import org.apache.tinkerpop.gremlin.process.traversal.Order;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.process.traversal.step.TraversalOptionParent.Pick;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.codejargon.feather.Provides;
 
 import p4analyser.ontology.Dom;
+import p4analyser.ontology.Status;
+import p4analyser.ontology.analyses.AbstractSyntaxTree;
+import p4analyser.ontology.analyses.SyntaxTree;
 
 /**
  * Hello world!
  *
  */
+// TODO rename this to abstract syntax tree
 public class Aliases {
-    public static void main( String[] args )
-    {
-        String host = args[0];
-        int port = Integer.parseInt(args[1]);
-        String remoteTraversalSourceName = args[2];
-
-//        Graph graph = TinkerGraph.open();
-//        GraphTraversalSource g = graph.traversal();
-        GraphTraversalSource g = 
-            AnonymousTraversalSource
-                    .traversal()
-                    .withRemote(DriverRemoteConnection.using(host, port, remoteTraversalSourceName));
-
-        analyse(g);
-    }
 
     // TODO idea: method that execute queries should be named questions (whoUsesDeclaredVariable)
     // TODO another idea: method should be named based on the edge it adds (but what about complex methods)
     // TODO idea: documentation of each query should describe a precondition (what structures are traversed) and a postcondition (how is the syntax tree modified)
     
-    public static void analyse(GraphTraversalSource g){
+    @Provides
+    @Singleton
+    @AbstractSyntaxTree
+    public Status analyse(GraphTraversalSource g, @SyntaxTree Status s){
+        System.out.println(AbstractSyntaxTree.class.getSimpleName() +" started.");
+
         Parser.analyse(g);
         Control.analyse(g);
         Instantiation.analyse(g);
 
-
+        System.out.println(AbstractSyntaxTree.class.getSimpleName() +" complete.");
+        return new Status();
     }
 
     private static class Parser {

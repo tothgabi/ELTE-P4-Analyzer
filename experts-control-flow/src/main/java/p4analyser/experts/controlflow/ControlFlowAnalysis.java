@@ -1,5 +1,7 @@
 package p4analyser.experts.controlflow;
 
+import javax.inject.Singleton;
+
 import org.apache.tinkerpop.gremlin.process.traversal.Order;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
@@ -8,13 +10,28 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.util.function.Lambda;
 
 import p4analyser.ontology.Dom;
+import p4analyser.ontology.Status;
+
+import org.codejargon.feather.Provides;
+
+import p4analyser.ontology.analyses.AbstractSyntaxTree;
+import p4analyser.ontology.analyses.ControlFlow;
+import p4analyser.ontology.analyses.SymbolTable;
+import p4analyser.ontology.analyses.SyntaxTree;
 
 public class ControlFlowAnalysis {
+
 
     // NOTE: parsers are not structured language elements, we don't add return edges between parser states
     // NOTE: parser control flow is complicated, but it is because of the grammar
     // TODO: test on 1-way conditionals
-        public static void analyse(GraphTraversalSource g) {
+        @Provides
+        @Singleton
+        @ControlFlow
+        public Status analyse(GraphTraversalSource g, 
+                            @SyntaxTree Status st, 
+                            @AbstractSyntaxTree Status ast, 
+                            @SymbolTable Status sym) {
 
         // // query printing
         //        File f = File. createTempFile("query", ".tex");
@@ -24,6 +41,8 @@ public class ControlFlowAnalysis {
         //        ps.close();
         //        System.exit(0);
 
+            System.out.println(ControlFlow.class.getSimpleName() + " started.");
+
             addFlowToFirstStatement(g);
             addFlowToConditionalBranches(g);
             addFlowBetweenSiblings(g);
@@ -31,6 +50,9 @@ public class ControlFlowAnalysis {
             addParserEntry(g);
             addParserExit(g);
             addEntryExit(g);
+
+            System.out.println(ControlFlow.class.getSimpleName() +" complete.");
+            return new Status();
         }
 
         // send flow from each block to its first statement (possibly another block)
