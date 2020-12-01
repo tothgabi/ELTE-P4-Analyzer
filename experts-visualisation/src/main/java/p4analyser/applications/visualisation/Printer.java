@@ -22,7 +22,8 @@ import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSo
 import org.reflections.Reflections;
 import org.codejargon.feather.Provides;
 
-import p4analyser.ontology.providers.ApplicationProvider;
+import p4analyser.ontology.providers.AppUI;
+import p4analyser.ontology.providers.Application;
 import p4analyser.applications.visualisation.GraphUtils.Label;
 import p4analyser.ontology.Status;
 import p4analyser.ontology.analyses.AbstractSyntaxTree;
@@ -32,36 +33,25 @@ import p4analyser.ontology.analyses.ControlFlow;
 import p4analyser.ontology.analyses.SymbolTable;
 import p4analyser.ontology.analyses.SyntaxTree;
 
-public class Printer implements ApplicationProvider {
+public class Printer implements Application {
+
+    DrawCommand cmd = new DrawCommand();
+
+    @Inject GraphTraversalSource g; 
+    @Inject @SyntaxTree         Provider<Status> st;
+    @Inject @AbstractSyntaxTree Provider<Status> ast;
+    @Inject @SymbolTable        Provider<Status> symtab;
+    @Inject @CallGraph          Provider<Status> cg;
+    @Inject @ControlFlow        Provider<Status> cfg;
+    @Inject @CallSites          Provider<Status> cs;
 
     @Override
-    public String getUICommandName() {
-        return "draw";
+    public DrawCommand getUI(){
+        return cmd;
     }
 
     @Override
-    public Class<? extends DrawCommand> getUICommand() {
-        return DrawCommand.class;
-    }
-
-    @Override
-    public String[] getUICommandAliases() {
-        return new String[]{};
-    }
-
-    @Provides
-    @Singleton
-    @Application
-    public Status run(DrawCommand cmd, 
-                    Provider<GraphTraversalSource> pg, 
-                    @SyntaxTree         Provider<Status> st,
-                    @AbstractSyntaxTree Provider<Status> ast,
-                    @SymbolTable        Provider<Status> symtab,
-                    @CallGraph          Provider<Status> cg,
-                    @ControlFlow        Provider<Status> cfg,
-                    @CallSites          Provider<Status> cs)
-            throws IOException, TransformerException, InterruptedException {
-
+    public Status run() throws IOException, TransformerException, InterruptedException {
 
         Map<Class<? extends Annotation>, Provider<Status>> providers = new HashMap<>();
         providers.put(SyntaxTree.class, st);
@@ -87,7 +77,7 @@ public class Printer implements ApplicationProvider {
                     .collect(Collectors.toMap(c -> c.getSimpleName(), c -> c));
 
         if(cmd.names == null || cmd.names.isEmpty()){
-            throw new IllegalArgumentException("Add one or more argument from the following: " + analysesMap.keySet());
+            throw new IllegalArgumentException("draw: Add one or more argument from the following: " + analysesMap.keySet());
         }
 
         Collection<Label> selection = new ArrayList<>();
@@ -98,8 +88,6 @@ public class Printer implements ApplicationProvider {
         System.out.println("selection: " + selection);
 
         // parameters are validated, start invoking the dependencies
-
-        GraphTraversalSource g = pg.get();
 
         for (String str : cmd.names) {
             Class<? extends Annotation> a = analysesMap.get(str);

@@ -35,19 +35,35 @@ public class LocalGremlinServer {
     }
 
     private static Boolean isWindows = SystemUtils.OS_NAME.contains("Windows");
-    private p4analyser.blackboard.App bb = null;
+    transient private p4analyser.blackboard.App bb = null;
+    transient private GraphTraversalSource g = null;
 
-    @Provides
-    @Singleton
-    public GraphTraversalSource start() {
+	private String defaultStateDirectory = null;
+
+    // no-arg constructor is left-empty for serialiazation reasons
+    public LocalGremlinServer(){
+
+    }
+    public LocalGremlinServer(String defaultStateDirectory){
+        this.defaultStateDirectory = defaultStateDirectory;
+    }
+
+    public void init() throws IOException {
+        if(defaultStateDirectory == null)
+            bb = new p4analyser.blackboard.App(new String[] { "-c", GREMLIN_SERVER_CONF_PATH });
+        else
+            bb = new p4analyser.blackboard.App(
+                new String[] { "-c", GREMLIN_SERVER_CONF_PATH, "-s", defaultStateDirectory });
+        bb.start();
+        connect();
+    }
+
+    private void connect() throws IOException {
 
         // cheap way:
         // Graph graph = TinkerGraph.open();
         // GraphTraversalSource g = graph.traversal();
         // return g;
-
-        bb = new p4analyser.blackboard.App(new String[] { "-c", GREMLIN_SERVER_CONF_PATH });
-        bb.start();
 
         // TODO read these from gremlin-server.min.yaml, otherwise the info have to
         // maintained at two places
@@ -55,15 +71,34 @@ public class LocalGremlinServer {
         int port = 8182;
         String remoteTraversalSourceName = "g";
 
-        GraphTraversalSource g = AnonymousTraversalSource.traversal()
-                .withRemote(DriverRemoteConnection.using(host, port, remoteTraversalSourceName));
+        disconnect();
 
+        g = AnonymousTraversalSource.traversal()
+                .withRemote(DriverRemoteConnection.using(host, port, remoteTraversalSourceName));
+    }
+
+    private void disconnect() throws IOException {
+        if (g != null) {
+            try {
+                g.close();
+            } catch (Exception e) {
+                throw new IOException(e);
+            }
+        }
+    }
+
+    @Provides
+    @Singleton
+    public GraphTraversalSource provideConnection() throws IOException {
         return g;
     }
 
-    public void close() throws InterruptedException, ExecutionException, TimeoutException {
+    public void close() throws InterruptedException, ExecutionException, TimeoutException, IOException {
+        disconnect();
+
         if(bb!=null)
             bb.close();
+
     }
     
     // NOTE: The paths start with a "/". In windows it is a problem, we need to cut it out.

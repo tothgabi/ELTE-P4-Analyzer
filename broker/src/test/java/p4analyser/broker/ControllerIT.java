@@ -32,7 +32,8 @@ public class ControllerIT {
 
     public static JsonHandler jsonHandler;
 
-    public static void main(String[] args) throws InterruptedException, ExecutionException, TimeoutException {
+    public static void main(String[] args) throws InterruptedException, ExecutionException, TimeoutException,
+            IOException {
         System.out.println("ControllerIT - has started");
         rightPaths();
 
@@ -53,12 +54,11 @@ public class ControllerIT {
         System.exit(0);
     }
 
-    private ControllerIT() {
+    private ControllerIT() throws IOException {
         server = new LocalGremlinServer();
-        server.start();
     }
 
-    private void close() throws InterruptedException, ExecutionException, TimeoutException {
+    private void close() throws InterruptedException, ExecutionException, TimeoutException, IOException {
         server.close();
     }
 

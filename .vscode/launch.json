@@ -16,7 +16,7 @@
             "name": "Debug (Launch) - Current File",
             "request": "launch",
             "mainClass": "${file}",
-            "args": ["draw"]
+            "args": ["draw", "-A", "ControlFlow"]
         },
         {
             "type": "java",

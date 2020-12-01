@@ -1,8 +1,11 @@
 package p4analyser.broker;
 
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -22,8 +25,8 @@ import org.reflections.scanners.MethodAnnotationsScanner;
 import p4analyser.ontology.Status;
 import p4analyser.ontology.analyses.AbstractSyntaxTree;
 import p4analyser.ontology.analyses.ControlFlow;
-import p4analyser.ontology.providers.ApplicationProvider;
-import p4analyser.ontology.providers.ApplicationProvider.Application;
+import p4analyser.ontology.providers.AppUI;
+import p4analyser.ontology.providers.Application;
 
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.ConfigurationException;
@@ -33,8 +36,10 @@ import org.apache.commons.lang3.SystemUtils;
 
 public class App {
 
-//    private static final List<Class<? extends Annotation>> analyses =
-//        Arrays.asList(SyntaxTree.class);
+    // private static final List<Class<? extends Annotation>> analyses =
+    // Arrays.asList(SyntaxTree.class);
+
+    private static final String STATE_NAME = "injector.gryo";
 
     private static final String EXPERTS_PACKAGE = "p4analyser.experts";
     private static final String APPLICATIONS_PACKAGE = "p4analyser.applications";
@@ -48,42 +53,39 @@ public class App {
     // private static String GREMLIN_CLIENT_CONF_CLUSTERFILE_PATH =
     // loader.getResource("conf/remote-objects.yaml").getPath();
 
-    {
-        rightPaths();
-    }
-
     public static final String CORE_P4 = loader.getResource("core.p4").getPath().toString();
     public static final String V1MODEL_P4 = loader.getResource("v1model.p4").getPath().toString();
     public static final String BASIC_P4 = loader.getResource("basic.p4").getPath().toString();
 
-    public static void main(String[] args) throws InterruptedException, ExecutionException, TimeoutException,
-            InstantiationException, IllegalAccessException, IllegalArgumentException, InvocationTargetException,
-            NoSuchMethodException, SecurityException {
+    {
+        rightPaths();
+    }
+
+
+    public static void main(String[] args) throws Exception {
 //        Reflections appReflections = new Reflections("p4analyser.experts", new MethodAnnotationsScanner());
 
-        Map<String, ApplicationProvider> apps = discoverApplications();
-        Map<String, Object> appCmds = appCommands(apps); // local copies to avoid storing stuff inside the providers
+        Map<String, Application> apps = discoverApplications();
 
         System.out.println("Applications discovered:" + apps);
 
-        BaseCommand base = new BaseCommand();
-
         JCommander.Builder jcb = JCommander.newBuilder();
-        jcb.addObject(base);
 
-        for (ApplicationProvider app : apps.values()) {
-            String cmdName = app.getUICommandName();
-            jcb.addCommand(cmdName, appCmds.get(cmdName));
+        for (Application app : apps.values()) {
+            AppUI cmd = app.getUI();
+            String cmdName = cmd.getCommandName();
+            String[] aliases = cmd.getCommandNameAliases();
+
+            jcb.addCommand(cmdName, cmd, aliases);
         }
         
         JCommander jc = jcb.build();
         jc.parse(args);
 
         String commandName = jc.getParsedCommand();
-        Object command = appCmds.get(commandName);
+        Application app = apps.get(commandName);
 
-
-        if (base.help) {
+        if (app.getUI().help) {
             jc.usage();
             System.exit(0);
         }
@@ -94,72 +96,123 @@ public class App {
             System.exit(1);
         }
 
-        System.out.println("Command:" + command.toString());
+        System.out.println("Command:" + app.getUI().getCommandName() + " " + app.getUI());
 
-        if (base.P4_FILEPATH == null) {
+        if (app.getUI().p4FilePath == null) {
             System.out.println("warning: no P4 input file argument provided, using basic.p4");
-            base.P4_FILEPATH = BASIC_P4;
+            app.getUI().p4FilePath = BASIC_P4;
         }
 
-        P4FileService p4FileService = new P4FileService(base.P4_FILEPATH, CORE_P4, V1MODEL_P4);
-        LocalGremlinServer server = new LocalGremlinServer();
+        Map<Class<? extends Annotation>, Object> analysers = discoverAnalysers();
+        System.out.println("Analysers discovered: " + analysers);
+
+
+        String psp = 
+            app.getUI().databaseLocation == null 
+                ? null 
+                : persistentStatePath(app.getUI().databaseLocation, app.getUI().p4FilePath);
+
+        Feather feather; 
+        LocalGremlinServer server;
+        if(psp == null ){
+            // start the server in in-memory mode
+            LocalGremlinServer server0 = new LocalGremlinServer();
+            server0.init();
+            server = server0;
+            feather = createInjector(app.getUI().p4FilePath, analysers, server);
+        } else {
+            try {
+                // all dependencies are serialized. the server object will store the 
+                PersistentState state = loadInjector(psp);
+                feather = state.injector;
+                server = state.server;
+            } catch(FileNotFoundException e){
+                // there is no file at the location yet
+                // start the server in persistent mode and point it here
+                LocalGremlinServer server0 = new LocalGremlinServer(psp);
+                server0.init();
+                server = server0;
+                feather = createInjector(app.getUI().p4FilePath, analysers, server);
+            }
+        }
+    
+        feather.injectFields(app);
+        app.run();
+
+        server.close();
+
+        if(psp != null){
+            saveInjector(psp);
+        }
+
+        System.exit(0);
+    }
+
+
+    private static String persistentStatePath(String databaseLocation, String p4FilePath) {
+        return Paths.get(databaseLocation, p4FilePath).toString();
+    }
+
+    private static PersistentState loadInjector(String persistentStatePath) throws FileNotFoundException {
+        throw new RuntimeException("persistance not implemented yet");
+    }
+    private static void saveInjector(String persistentStatePath) {
+        throw new RuntimeException("persistance not implemented yet");
+    }
+
+    private static Feather createInjector(String p4FilePath, Map<Class<? extends Annotation>, Object> analysers,
+            LocalGremlinServer server) {
+        P4FileService p4FileService = new P4FileService(p4FilePath, CORE_P4, V1MODEL_P4);
 
         Collection<Object> deps = new ArrayList<>();
         deps.add(p4FileService);
         deps.add(server);
-        Map<Class<? extends Annotation>, Object> analysers = discoverAnalysers();
-        System.out.println("Analysers discovered: " + analysers);
 
         for (Object analyser : analysers.values()) {
             deps.add(analyser);
         }
 
-        deps.add(command);
-        deps.add(apps.get(commandName));
-
         Feather feather = Feather.with(deps.toArray());
 
-        feather.provider(Key.of(Status.class, Application.class)).get();
-
-        server.close();
-        System.exit(0);
+        return feather;
     }
 
-    public static Map<String, Object> appCommands(Map<String, ApplicationProvider> apps)
+    public static Map<String, Object> appCommands(Map<String, Application> apps)
             throws InstantiationException, IllegalAccessException, IllegalArgumentException, InvocationTargetException,
             NoSuchMethodException, SecurityException {
         Map<String, Object> cmds = new HashMap<>();
-        for (Map.Entry<String, ApplicationProvider> entry : apps.entrySet()) {
-            Object command = entry.getValue().getUICommand().getConstructor().newInstance();
+        for (Map.Entry<String, Application> entry : apps.entrySet()) {
+            AppUI command = entry.getValue().getUI();
             cmds.put(entry.getKey(), command);
         }
         return cmds;
     }
 
-    public static Map<String, ApplicationProvider> discoverApplications()
+    public static Map<String, Application> discoverApplications()
             throws InstantiationException, IllegalAccessException, IllegalArgumentException, InvocationTargetException,
             NoSuchMethodException, SecurityException {
-        Reflections reflections = new Reflections(APPLICATIONS_PACKAGE, new MethodAnnotationsScanner());
+        Reflections reflections = new Reflections(APPLICATIONS_PACKAGE);
 
-        Set<Method> methods = reflections.getMethodsAnnotatedWith(Application.class);
-        if(methods.isEmpty()){
+ //        Set<Method> methods = reflections.getMethodsAnnotatedWith(Application.class);
+        Set<Class<? extends Application>> appImpls = reflections.getSubTypesOf(Application.class);
+        if(appImpls.isEmpty()){
             String msg = 
                 String.format("No applications found in " + APPLICATIONS_PACKAGE);
             throw new IllegalStateException(msg);
         }
 
-        Map<String, ApplicationProvider> apps = new HashMap<>();
-        for (Method m : methods) {
-            Object candid = m.getDeclaringClass().getConstructor().newInstance();
-            if(!(candid instanceof ApplicationProvider)){
+        Map<String, Application> apps = new HashMap<>();
+        for (Class<? extends Application> m : appImpls) {
+            Object candid = m.getConstructor().newInstance();
+            if(!(candid instanceof Application)){
                 throw new IllegalStateException(
                     String.format("Application %s does not implement interface %s", 
-                                  ApplicationProvider.class.getSimpleName()));
+                                  Application.class.getSimpleName()));
             }
-            ApplicationProvider app = (ApplicationProvider) candid;
-            if(apps.get(app.getUICommandName()) != null)
-                throw new IllegalStateException("Ambiguous application name " + app.getUICommandName());
-            apps.put(app.getUICommandName(), app);
+            Application app = (Application) candid;
+            if(apps.get(app.getUI().getCommandName()) != null)
+                throw new IllegalStateException("Ambiguous application name " + app.getUI().getCommandName());
+            apps.put(app.getUI().getCommandName(), app);
         }
 
         return apps;
