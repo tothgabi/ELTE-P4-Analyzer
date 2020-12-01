@@ -83,6 +83,11 @@ public class App {
         jc.parse(args);
 
         String commandName = jc.getParsedCommand();
+        if(commandName == null){
+            jc.usage();
+            System.exit(0);
+        }
+
         Application app = apps.get(commandName);
 
         if (app.getUI().help) {

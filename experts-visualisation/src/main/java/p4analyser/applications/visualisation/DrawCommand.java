@@ -20,7 +20,7 @@ public class DrawCommand extends AppUI {
 
     @Override
     public String[] getCommandNameAliases() {
-        return new String[]{"visualize"};
+        return new String[]{};
     }
 
     @Parameter(names = { "-A", "--analysers"}, description = "<descriptors of analysers whose results will be included in the output subgraph>")

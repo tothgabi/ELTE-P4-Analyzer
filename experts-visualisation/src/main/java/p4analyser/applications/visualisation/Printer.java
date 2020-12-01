@@ -37,13 +37,13 @@ public class Printer implements Application {
 
     DrawCommand cmd = new DrawCommand();
 
-    @Inject GraphTraversalSource g; 
-    @Inject @SyntaxTree         Provider<Status> st;
-    @Inject @AbstractSyntaxTree Provider<Status> ast;
-    @Inject @SymbolTable        Provider<Status> symtab;
-    @Inject @CallGraph          Provider<Status> cg;
-    @Inject @ControlFlow        Provider<Status> cfg;
-    @Inject @CallSites          Provider<Status> cs;
+    @Inject                      private GraphTraversalSource g; 
+    @Inject @SyntaxTree          private Provider<Status> st;
+    @Inject @AbstractSyntaxTree  private Provider<Status> ast;
+    @Inject @SymbolTable         private Provider<Status> symtab;
+    @Inject @CallGraph           private Provider<Status> cg;
+    @Inject @ControlFlow         private Provider<Status> cfg;
+    @Inject @CallSites           private Provider<Status> cs;
 
     @Override
     public DrawCommand getUI(){
