@@ -22,40 +22,45 @@ import org.codejargon.feather.Provides;
 
 public class LocalGremlinServer {
 
-    private static ClassLoader loader = Thread.currentThread().getContextClassLoader();
-
-    private String GREMLIN_SERVER_CONF_PATH = loader.getResource("conf/gremlin-server-min.yaml").getPath();
-    private String TINKERGRAPH_EMPTY_PROPERTIES_PATH = loader.getResource("conf/tinkergraph-empty.properties")
-            .getPath();
-    private String EMPTY_SAMPLE_GROOVY_PATH = loader.getResource("conf/empty-sample.groovy").getPath();
+    transient private static ClassLoader loader = Thread.currentThread().getContextClassLoader();
+    transient private static String GREMLIN_SERVER_CONF_PATH; 
+    transient private static String TINKERGRAPH_EMPTY_PROPERTIES_PATH; 
+    transient private static String EMPTY_SAMPLE_GROOVY_PATH; 
 
     {
+        GREMLIN_SERVER_CONF_PATH = loader.getResource("conf/gremlin-server-min.yaml").getPath();
+        TINKERGRAPH_EMPTY_PROPERTIES_PATH = loader.getResource("conf/tinkergraph-empty.properties").getPath();
+        EMPTY_SAMPLE_GROOVY_PATH = loader.getResource("conf/empty-sample.groovy").getPath();
         rightPaths();
         updateServerConfig();
     }
 
-    private static Boolean isWindows = SystemUtils.OS_NAME.contains("Windows");
+    transient private static Boolean isWindows = SystemUtils.OS_NAME.contains("Windows");
     transient private p4analyser.blackboard.App bb = null;
     transient private GraphTraversalSource g = null;
 
 	private String defaultStateDirectory = null;
 
-    // no-arg constructor is left-empty for serialiazation reasons
-    public LocalGremlinServer(){
-
+    // this is for serialiazation 
+    public LocalGremlinServer() {
     }
-    public LocalGremlinServer(String defaultStateDirectory){
+
+    public LocalGremlinServer(String defaultStateDirectory)  {
         this.defaultStateDirectory = defaultStateDirectory;
     }
 
-    public void init() throws IOException {
+    public void init() throws LocalGremlinServerException {
         if(defaultStateDirectory == null)
             bb = new p4analyser.blackboard.App(new String[] { "-c", GREMLIN_SERVER_CONF_PATH });
         else
             bb = new p4analyser.blackboard.App(
                 new String[] { "-c", GREMLIN_SERVER_CONF_PATH, "-s", defaultStateDirectory });
-        bb.start();
-        connect();
+        try {
+            bb.start();
+            connect();
+        } catch (IOException e) {
+            throw new LocalGremlinServerException(e);
+        }
     }
 
     private void connect() throws IOException {

@@ -70,6 +70,10 @@ public class App {
 
         File graphmlPath = Paths.get(databaseLocation, PERSIST_NAME).toFile();
 
+        // If persistance was requested but nothing was persisted before,
+        //    then don't try to load it.
+        if(!graphmlPath.exists()) return;
+
         GraphTraversalSource g = createClient();
         g.io(graphmlPath.toString()).with(IO.reader, IO.gryo).read().iterate();
         try {

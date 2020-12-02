@@ -23,13 +23,13 @@ public class DrawCommand extends AppUI {
         return new String[]{};
     }
 
-    @Parameter(names = { "-A", "--analysers"}, description = "<descriptors of analysers whose results will be included in the output subgraph>")
+    @Parameter(names = { "-A", "--analysers"}, description = "<descriptors of analysers whose results will be included in the output subgraph>", validateWith = OptionCannotBeValueValidator.class)
     public List<String> names;
 
-    @Parameter(names = { "-F", "--format"}, description="Output subgraph file format descriptors (e.g. svg).")
+    @Parameter(names = { "-F", "--format"}, description="Output subgraph file format descriptors (e.g. svg).", validateWith = OptionCannotBeValueValidator.class)
     public List<String> format;
 
-    @Parameter(names = { "-o", "--output"}, description="Preferred location of output subgraph file.")
+    @Parameter(names = { "-o", "--output"}, description="Preferred location of output subgraph file.", validateWith = OptionCannotBeValueValidator.class)
     public Boolean output = false;
 
     @Override

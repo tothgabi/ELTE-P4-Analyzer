@@ -94,37 +94,12 @@ public class Printer implements Application {
             providers.get(a).get();
         }
 
-        GraphUtils.printGraph(GraphUtils.subgraph(g, selection.toArray(n -> new Label[n])), 
+        GraphUtils.printGraph(GraphUtils.subgraph(g, selection.toArray(new Label[selection.size()])), 
                               "proba", 
                               true, 
                               GraphUtils.Extension.SVG);
         
-//        printSyntaxTree(g);
-//        printSemanticGraph(g);
-//        printSymbol(g);
-//        printCalls(g);
-//        printCallSites(g);
-//        printCfg(g);
-
         return new Status();
     }
 
-    public static void printSyntaxTree(GraphTraversalSource g) throws IOException, TransformerException, InterruptedException {
-        GraphUtils.printGraph(GraphUtils.subgraph(g, Label.SYN), "proba", true, GraphUtils.Extension.SVG);
-    }
-    public static void printSemanticGraph(GraphTraversalSource g) throws IOException, TransformerException, InterruptedException {
-        GraphUtils.printGraph(GraphUtils.subgraph(g, Label.SEM), "proba", true, GraphUtils.Extension.SVG);
-    }
-    public static void printCfg(GraphTraversalSource g) throws IOException, TransformerException, InterruptedException {
-        GraphUtils.printGraph(GraphUtils.subgraph(g, Label.CFG), "proba", true, GraphUtils.Extension.SVG);
-    }
-    public static void printSymbol(GraphTraversalSource g) throws IOException, TransformerException, InterruptedException {
-        GraphUtils.printGraph(GraphUtils.subgraph(g, Label.SYMBOL), "proba", true, GraphUtils.Extension.SVG);
-    }
-    public static void printCalls(GraphTraversalSource g) throws IOException, TransformerException, InterruptedException {
-        GraphUtils.printGraph(GraphUtils.subgraph(g, Label.CALL), "proba", true, GraphUtils.Extension.SVG);
-    }
-    public static void printCallSites(GraphTraversalSource g) throws IOException, TransformerException, InterruptedException {
-        GraphUtils.printGraph(GraphUtils.subgraph(g, Label.SITES), "proba", true, GraphUtils.Extension.SVG);
-    }
 }
