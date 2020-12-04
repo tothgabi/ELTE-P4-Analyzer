@@ -35,9 +35,14 @@ public class App {
 
     private GremlinServer server = null;
 
-    @Parameter(names = { "--store",
-            "-s" }, description = "Directory where database is stored. If not specified, in-memory database is launched. If no database exists, one is created.")
+    @Parameter(names = { "--store" }, description = "Directory where database is stored. If not specified, in-memory database is launched. If no database exists, one is created.")
     private String databaseLocation;
+
+    @Parameter(names={"--reset"}, description = "To be used together with the --store option. Existing data will not be loaded, an empty graph is created instead.")
+    public boolean reset;
+
+    @Parameter(names={"--readonly", "-r"}, description = "To be used together with the --store option. Data will be loaded from persistent storage, but modifications will not be saved.")
+    public boolean readonly;
 
     public App(String[] args) {
         JCommander.newBuilder().addObject(this).build().parse(args);
@@ -58,7 +63,7 @@ public class App {
             throw new IllegalStateException("Failed to start GremlinServer.", e);
         }
 
-        if (databaseLocation != null) {
+        if (databaseLocation != null && !reset) {
             readFromFile();
         }
     }
@@ -112,7 +117,7 @@ public class App {
     }
 
     public void close() throws InterruptedException, ExecutionException, TimeoutException, IOException {
-        if(databaseLocation != null){
+        if(databaseLocation != null && !readonly){
             saveToFile();
         }
 

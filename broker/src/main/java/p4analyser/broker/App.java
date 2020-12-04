@@ -11,6 +11,8 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -37,12 +39,14 @@ import p4analyser.ontology.analyses.ControlFlow;
 import p4analyser.ontology.providers.AppUI;
 import p4analyser.ontology.providers.Application;
 
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.PropertiesConfiguration;
 
-import org.apache.commons.lang3.SystemUtils;
-import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.commons.lang.SystemUtils;
+
 
 public class App {
 
@@ -57,9 +61,8 @@ public class App {
     // NOTE: before you extend this list with your class, check out the --readonly option
     private static final Collection<Class<?>> DO_NOT_SERIALIZE = Arrays.asList(GraphTraversalSource.class);
 
-    private static ClassLoader loader = Thread.currentThread().getContextClassLoader();
-
-    private String GREMLIN_CLIENT_CONF_PATH = loader.getResource("conf/remote-graph.properties").getPath();
+    private static final ClassLoader loader = Thread.currentThread().getContextClassLoader();
+    private static String GREMLIN_CLIENT_CONF_PATH = loader.getResource("conf/remote-graph.properties").getPath();
     // NOTE Unlike with YAML, we can use "classpath:" notation in .properties files,
     // so it turned out we don't need this:
     // private static String GREMLIN_CLIENT_CONF_CLUSTERFILE_PATH =
@@ -68,25 +71,28 @@ public class App {
     public static final String CORE_P4 = loader.getResource("core.p4").getPath().toString();
     public static final String V1MODEL_P4 = loader.getResource("v1model.p4").getPath().toString();
     public static final String BASIC_P4 = loader.getResource("basic.p4").getPath().toString();
+    private static Boolean isWindows = SystemUtils.OS_NAME.contains("Windows");
 
-    {
+    static {
         rightPaths();
+        loadClientConfig();
     }
 
     public static void main(String[] args) throws Exception {
 
         // prepare injector
         App broker = new App(args);  
-        // run the experts ()
+
+        // run the experts (except the ones the application lazily initializes)
         broker.feather.injectFields(broker.invokedApp); 
 
         // run the application
         broker.invokedApp.run(); 
 
         if (broker.persistingDirectory != null ) {
-            if(!broker.readonly)
+            if(!broker.readonly){
                 App.saveInjector(broker.persistingDirectory, broker.feather);
-            else
+            } else
                 System.out.println("--readonly argument found, modifications are not saved");
         }
 
@@ -107,10 +113,10 @@ public class App {
     private App(String[] args) throws DiscoveryException, IOException, LocalGremlinServerException,
             ClassNotFoundException, ReflectionException {
 
-        analysers = discoverAnalysers();
+        analysers = App.discoverAnalysers();
         System.out.println("Analysers discovered: " + analysers);
 
-        apps = discoverApplications();
+        apps = App.discoverApplications();
         System.out.println("Applications discovered:" + apps);
 
         JCommander jc = parseCLIArgs(args);
@@ -134,7 +140,7 @@ public class App {
         reset = invokedApp.getUI().reset;
         readonly = invokedApp.getUI().readonly;
 
-        p4FilePath = ensureP4FileOrDefault(invokedApp.getUI().p4FilePath);
+        p4FilePath = this.ensureP4FileOrDefault(invokedApp.getUI().p4FilePath);
 
         if (invokedApp.getUI().databaseLocation != null) {
             if(reset && readonly){
@@ -142,7 +148,7 @@ public class App {
             }
 
             persistingDirectory = 
-                ensurePersistingDirectoryExists(invokedApp.getUI().databaseLocation, p4FilePath);
+                App.ensurePersistingDirectoryExists(invokedApp.getUI().databaseLocation, p4FilePath);
         }
 
 
@@ -297,7 +303,7 @@ public class App {
             // Start the server in in-memory mode.
             server0 = new LocalGremlinServer();
         } else {
-            server0 = new LocalGremlinServer(persistingDirectory);
+            server0 = new LocalGremlinServer(persistingDirectory, reset, readonly);
         }
 
         server0.init();
@@ -396,24 +402,24 @@ public class App {
 		}
 	
 	
+        Path statePath = Paths.get(persistentStatePath, "state.xml");
+        Files.deleteIfExists(statePath);
 		XStream xstream = new XStream();
-		ObjectOutputStream out = xstream.createObjectOutputStream(
+        ObjectOutputStream out = xstream.createObjectOutputStream(
 											new FileOutputStream(
-												Paths.get(persistentStatePath, "state.xml").toString()));
+                                                    statePath.toString()));
 		out.writeObject(singletons);
 		out.close();
 		System.out.println("Serialized the injector state: " + singletons);
 	}
 
-
-    private static Boolean isWindows = SystemUtils.OS_NAME.contains("Windows");
-    private void rightPaths() {
+    private static void rightPaths() {
         if (isWindows) {
             GREMLIN_CLIENT_CONF_PATH = GREMLIN_CLIENT_CONF_PATH.substring(1);
         }
     }
 
-    private Configuration loadClientConfig() {
+    private static Configuration loadClientConfig() {
         Configuration c;
         try {
             c = new PropertiesConfiguration(GREMLIN_CLIENT_CONF_PATH);

@@ -32,4 +32,11 @@ public abstract class AppUI {
             }
         }
     }
+
+    @Override
+    public String toString() {
+        return "AppUI [databaseLocation=" + databaseLocation + ", help=" + help + ", p4FilePath=" + p4FilePath
+                + ", readonly=" + readonly + ", reset=" + reset + "]";
+    }
+
 }

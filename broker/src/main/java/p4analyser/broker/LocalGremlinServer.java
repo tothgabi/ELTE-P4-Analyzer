@@ -6,6 +6,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
@@ -20,41 +22,54 @@ import org.codejargon.feather.Provides;
 // NOTE For future reference, this guide was helpful: http://emehrkay.com/getting-started-with-tinkerpop-s-gremlin-server-and-gizmo-python
 // NOTE The official way would have been to use gremlin-server.sh or gremlin-server.bat.
 
+// NOTE when the blackboard server will be prepared for remote connections, this class will change as well. currently the double layering seems useless. 
 public class LocalGremlinServer {
 
-    transient private static ClassLoader loader = Thread.currentThread().getContextClassLoader();
-    transient private static String GREMLIN_SERVER_CONF_PATH; 
-    transient private static String TINKERGRAPH_EMPTY_PROPERTIES_PATH; 
-    transient private static String EMPTY_SAMPLE_GROOVY_PATH; 
+    private static ClassLoader loader = Thread.currentThread().getContextClassLoader();
+    private static String GREMLIN_SERVER_CONF_PATH = loader.getResource("conf/gremlin-server-min.yaml").getPath();
+    private static String TINKERGRAPH_EMPTY_PROPERTIES_PATH = loader.getResource("conf/tinkergraph-empty.properties").getPath();
+    private static String EMPTY_SAMPLE_GROOVY_PATH = loader.getResource("conf/empty-sample.groovy").getPath();
+    private static Boolean isWindows = SystemUtils.OS_NAME.contains("Windows");
 
-    {
-        GREMLIN_SERVER_CONF_PATH = loader.getResource("conf/gremlin-server-min.yaml").getPath();
-        TINKERGRAPH_EMPTY_PROPERTIES_PATH = loader.getResource("conf/tinkergraph-empty.properties").getPath();
-        EMPTY_SAMPLE_GROOVY_PATH = loader.getResource("conf/empty-sample.groovy").getPath();
+    static {
         rightPaths();
         updateServerConfig();
     }
 
-    transient private static Boolean isWindows = SystemUtils.OS_NAME.contains("Windows");
-    transient private p4analyser.blackboard.App bb = null;
-    transient private GraphTraversalSource g = null;
+    private p4analyser.blackboard.App bb = null;
+    private GraphTraversalSource g = null;
 
-	private String defaultStateDirectory = null;
+    private String defaultStateDirectory = null;
+    private boolean reset = false;
+    private boolean readonly = false;
 
     // this is for serialiazation 
     public LocalGremlinServer() {
     }
 
-    public LocalGremlinServer(String defaultStateDirectory)  {
+    public LocalGremlinServer(String defaultStateDirectory, boolean reset, boolean readonly)  {
         this.defaultStateDirectory = defaultStateDirectory;
+        this.reset = reset;
+        this.readonly = readonly;
     }
 
     public void init() throws LocalGremlinServerException {
-        if(defaultStateDirectory == null)
-            bb = new p4analyser.blackboard.App(new String[] { "-c", GREMLIN_SERVER_CONF_PATH });
-        else
-            bb = new p4analyser.blackboard.App(
-                new String[] { "-c", GREMLIN_SERVER_CONF_PATH, "-s", defaultStateDirectory });
+        List<String> args = new LinkedList<>();
+        args.add("-c");
+        args.add(GREMLIN_SERVER_CONF_PATH);
+        if(defaultStateDirectory != null){
+            args.add("--store");
+            args.add(defaultStateDirectory);
+        }
+        if(reset){
+            args.add("--reset");
+        }
+        if(readonly){
+            args.add("--readonly");
+        }
+
+        bb = new p4analyser.blackboard.App(args.toArray(new String[args.size()]));
+
         try {
             bb.start();
             connect();
@@ -107,7 +122,7 @@ public class LocalGremlinServer {
     }
     
     // NOTE: The paths start with a "/". In windows it is a problem, we need to cut it out.
-    private void rightPaths() {
+    private static void rightPaths() {
         if (isWindows) {
             GREMLIN_SERVER_CONF_PATH = GREMLIN_SERVER_CONF_PATH.substring(1);
             TINKERGRAPH_EMPTY_PROPERTIES_PATH = TINKERGRAPH_EMPTY_PROPERTIES_PATH.substring(1);
@@ -116,7 +131,7 @@ public class LocalGremlinServer {
     }
 
     // NOTE: GremlinServer does not seem to substitute "classpath:" inside the YAML, so we have to include the path manually
-    private void updateServerConfig() {
+    private static void updateServerConfig() {
         Path path = Paths.get(GREMLIN_SERVER_CONF_PATH);
         Charset charset = StandardCharsets.UTF_8;
 

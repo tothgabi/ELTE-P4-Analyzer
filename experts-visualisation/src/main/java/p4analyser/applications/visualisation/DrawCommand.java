@@ -23,7 +23,7 @@ public class DrawCommand extends AppUI {
         return new String[]{};
     }
 
-    @Parameter(names = { "-A", "--analysers"}, description = "<descriptors of analysers whose results will be included in the output subgraph>", validateWith = OptionCannotBeValueValidator.class)
+    @Parameter(names = { "-A", "--analysers"}, description = "<descriptors of analysers whose results will be included in the output subgraph>", validateWith = OptionCannotBeValueValidator.class, variableArity = true)
     public List<String> names;
 
     @Parameter(names = { "-F", "--format"}, description="Output subgraph file format descriptors (e.g. svg).", validateWith = OptionCannotBeValueValidator.class)
