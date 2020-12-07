@@ -1,3 +1,7 @@
+/**
+ * Copyright 2020, Eötvös Loránd University.
+ * All rights reserved.
+ */
 package p4analyser.experts.callgraph;
 
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;

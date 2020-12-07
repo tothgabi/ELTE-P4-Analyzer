@@ -1,9 +1,11 @@
+/**
+ * Copyright 2020, Eötvös Loránd University.
+ * All rights reserved.
+ */
 package p4analyser.experts.callgraph;
 
 import javax.inject.Singleton;
 
-import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
-import org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.codejargon.feather.Provides;

@@ -1,3 +1,7 @@
+/**
+ * Copyright 2020, Eötvös Loránd University.
+ * All rights reserved.
+ */
 package p4analyser.blackboard;
 
 import org.apache.tinkerpop.gremlin.process.traversal.P;

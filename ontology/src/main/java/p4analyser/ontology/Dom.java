@@ -1,3 +1,7 @@
+/**
+ * Copyright 2020, Eötvös Loránd University.
+ * All rights reserved.
+ */
 package p4analyser.ontology;
 
 // TODO the semantic domain is redundant. the subdomains should have abstract edges (e.g. call, reference, name). it is not important what is the type of the elements these connect (control, parser, instance subdomains should be eliminated. or maybe a new subdomain should be introduced to denote these)  

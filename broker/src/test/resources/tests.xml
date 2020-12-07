@@ -1,3 +1,9 @@
+<!--
+
+    Copyright 2020, Eötvös Loránd University.
+    All rights reserved.
+
+-->
 <project name="broker-test" default="test" basedir="."> 
     <target name="aliases-test-impl" extensionOf="aliases-test">
         <java classname="p4analyser.broker.tests.AliasesITs">
