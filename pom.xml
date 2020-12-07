@@ -73,6 +73,10 @@
                 <configuration>
                     <header>${maven.multiModuleProjectDirectory}/NOTICE.md</header>
                     <aggregate>true</aggregate>
+                    <excludes>
+                        <exclude>**/conf/**</exclude>
+                        <exclude>**/*.p4</exclude>
+                    </excludes>
                 </configuration>
                 <executions>
                     <execution>
