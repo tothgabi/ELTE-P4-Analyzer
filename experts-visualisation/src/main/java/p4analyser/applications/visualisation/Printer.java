@@ -28,6 +28,7 @@ import org.codejargon.feather.Provides;
 
 import p4analyser.ontology.providers.AppUI;
 import p4analyser.ontology.providers.Application;
+import p4analyser.ontology.providers.CLIArgs;
 import p4analyser.applications.visualisation.GraphUtils.Label;
 import p4analyser.ontology.Status;
 import p4analyser.ontology.analyses.AbstractSyntaxTree;
@@ -48,6 +49,7 @@ public class Printer implements Application {
     @Inject @CallGraph           private Provider<Status> cg;
     @Inject @ControlFlow         private Provider<Status> cfg;
     @Inject @CallSites           private Provider<Status> cs;
+    @Inject @CLIArgs           private AppUI cli;
 
     @Override
     public DrawCommand getUI(){
@@ -56,6 +58,7 @@ public class Printer implements Application {
 
     @Override
     public Status run() throws IOException, TransformerException, InterruptedException {
+        System.out.println("visu: " + cli);
 
         Map<Class<? extends Annotation>, Provider<Status>> providers = new HashMap<>();
         providers.put(SyntaxTree.class, st);

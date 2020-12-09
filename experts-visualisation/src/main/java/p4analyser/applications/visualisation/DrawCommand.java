@@ -38,7 +38,7 @@ public class DrawCommand extends AppUI {
 
     @Override
     public String toString() {
-        return "DrawCommand [format=" + format + ", help=" + help + ", output=" + output + ", names=" + names
+        return "DrawCommand [super= " + super.toString()+ ", format=" + format + ", help=" + help + ", output=" + output + ", names=" + names
                 + "]";
     }
 }

@@ -311,7 +311,7 @@ public class App {
         }
 
         server0.init();
-        feather0 = createInjector(p4FilePath, analysers, server0);
+        feather0 = createInjector(p4FilePath, invokedApp.getUI(), analysers, server0);
 
         try {
             // Updates the injector object with the status of the completed dependencies.
@@ -339,12 +339,14 @@ public class App {
         }
     }
 
-    private static Feather createInjector(String p4FilePath, Map<Class<? extends Annotation>, Object> analysers,
+    private static Feather createInjector(String p4FilePath, AppUI cmdArgs, Map<Class<? extends Annotation>, Object> analysers,
             LocalGremlinServer server)  {
         P4FileService p4FileService = new P4FileService(p4FilePath, CORE_P4, V1MODEL_P4);
+        CLIArgsProvider cli = new CLIArgsProvider(cmdArgs);
 
         Collection<Object> deps = new ArrayList<>();
         deps.add(p4FileService);
+        deps.add(cli);
         deps.add(server);
 
         for (Object analyser : analysers.values()) {
