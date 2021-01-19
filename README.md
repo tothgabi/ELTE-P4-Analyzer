@@ -33,8 +33,8 @@ _basic.p4_. If someone would like to try it with another file, then it can be gi
 ## Contributors
 **Máté Tejfel** - supervisor
 
-**Dániel Lukács** - theoretical idea and implementation of the tool
+**Dániel Lukács:** Infrastructure - theoretical idea and implementation
 
-**Gabriella Tóth** - theoretical idea and implementation of the verification
+**Gabriella Tóth:** Verification - theoretical idea and implementation
 
 _Eötvös Loránd University, Faculty of Informatics, Department of Programming Languages and Compilers_
