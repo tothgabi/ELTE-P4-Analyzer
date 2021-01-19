@@ -11,6 +11,6 @@ import javax.inject.Qualifier;
 
 @Qualifier
 @Retention(RetentionPolicy.RUNTIME)
-public @interface CallSites {
+public @interface Verification {
     
 }
